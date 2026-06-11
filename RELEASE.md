@@ -6,10 +6,12 @@
 
 ## 当前产物
 
-构建完成后,APK 位于项目根:
+构建完成后,APK 在 `app/build/outputs/apk/{buildType}/` 下,**文件名已经按 `yawn-lock-{versionName}-{buildType}.apk` 约定好**(由 `app/build.gradle.kts` 里的 `renameApksToReleaseConvention` 任务在 `assemble*` 之后自动改名):
 
-- `yawn-lock-1.0.0-release.apk` — 签名好的发布版(9.8 MB,推荐上架用)
-- `yawn-lock-1.0.0-debug.apk` — 调试版(15 MB,带调试符号,本地测试用)
+- `app/build/outputs/apk/release/yawn-lock-1.0.0-release.apk` — 签名好的发布版(约 10 MB,推荐上架用)
+- `app/build/outputs/apk/debug/yawn-lock-1.0.0-debug.apk` — 调试版(约 15 MB,带调试符号,本地测试用)
+
+> 想放到项目根方便取用,自己 `cp` 一下即可,不再写进 SOP。
 
 ---
 
@@ -45,13 +47,7 @@ cd /Users/carlos/workspace/打哈欠
 ./gradlew :app:assembleRelease
 ```
 
-产物:`app/build/outputs/apk/release/app-release.apk`(已自动用 keystore 签名)
-
-### 改名拷贝到根(方便取用)
-
-```bash
-cp app/build/outputs/apk/release/app-release.apk ./yawn-lock-1.0.0-release.apk
-```
+产物:`app/build/outputs/apk/release/yawn-lock-1.0.0-release.apk`(已自动用 keystore 签名,且通过 `renameApksToReleaseConvention` 任务改好名)。
 
 ### 重新生成 keystore(谨慎!)
 
@@ -88,7 +84,7 @@ cd app && \
 
 1. Play Console → "发布" → "正式版"
 2. 创建新版本
-3. 上传 `yawn-lock-1.0.0-release.apk` 或上传 AAB(推荐,见下)
+3. 上传 `app/build/outputs/apk/release/yawn-lock-1.0.0-release.apk` 或上传 AAB(推荐,见下)
 4. 填写版本说明
 5. 送审(首次审核 1-7 天)
 
@@ -134,7 +130,7 @@ cd app && \
 ```bash
 /opt/homebrew/opt/openjdk@17/bin/java -jar \
   ~/Library/Android/sdk/build-tools/34.0.0/lib/apksigner.jar \
-  verify --print-certs yawn-lock-1.0.0-release.apk
+  verify --print-certs app/build/outputs/apk/release/yawn-lock-1.0.0-release.apk
 ```
 
 应该看到 `CN=Yawn Lock, OU=App, O=Yawn Lock, ...`
