@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sleepy Lock — 悬浮窗</title>
+<style>
+:root{
+  --bg-1:#1a1a2e; --bg-2:#2d2466;
+  --fg:#fff; --muted:rgba(255,255,255,.55);
+  --accent:#6750a4; --accent-2:#b69df8;
+  --moon:#ffd97a;
+  --ease-standard:cubic-bezier(0.2,0,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  height:100%;
+  background:radial-gradient(ellipse at top,#2a2348 0%,#0e0e16 70%);
+  font-family:"Inter",-apple-system,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  color:var(--fg);
+  overflow:hidden;
+  position:relative;
+}
+
+/* Subtle dotted grid background so the widget reads as "floating" */
+body::before{
+  content:"";
+  position:absolute;inset:0;
+  background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:24px 24px;
+  pointer-events:none;
+}
+
+/* Right edge collapse hint */
+.edge-hint{
+  position:fixed;right:0;top:0;bottom:0;width:48px;
+  background:linear-gradient(270deg,rgba(103,80,164,.55),transparent);
+  pointer-events:none;opacity:0;transition:opacity180ms;
+  z-index:4;
+}
+body.show-edge .edge-hint{opacity:1}
+
+/* Top-left caption */
+.caption{
+  position:fixed;left:24px;top:24px;z-index:5;
+  font-size:12px;color:var(--muted);letter-spacing:.04em;
+}
+.caption b{color:var(--moon);font-weight:600}
+
+/* Bottom hint */
+.hint{
+  position:fixed;left:0;right:0;bottom:24px;z-index:5;
+  text-align:center;font-size:12px;color:var(--muted);
+  letter-spacing:.02em;line-height:1.5;padding:0 24px;
+}
+
+/* Demo buttons */
+.demo-row{
+  position:fixed;left:0;right:0;bottom:60px;z-index:5;
+  display:flex;gap:10px;justify-content:center;
+}
+.demo-row button{
+  font:inherit;font-size:12px;font-weight:600;
+  padding:8px 16px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);color:#fff;cursor:pointer;
+  transition:background 150ms;
+}
+.demo-row button:hover{background:rgba(255,255,255,.14)}
+.demo-row button.primary{background:var(--accent);border-color:transparent}
+.demo-row button.primary:hover{background:#7c63b8}
+
+/* ── Floating widget ─────────────────────────────────────── */
+.float{
+  position:fixed;right:40px;top:35%;
+  width:200px;
+  background:linear-gradient(160deg,#2d2466,#6750a4);
+  border-radius:22px;padding:14px;
+  box-shadow:0 14px 32px rgba(80,40,160,.45),0 0 0 1px rgba(255,255,255,.08);
+  color:#fff;z-index:10;
+  cursor:grab;user-select:none;touch-action:none;
+  transition:width 220ms var(--ease-standard),padding 220ms var(--ease-standard);
+}
+.float.dragging{cursor:grabbing;transition:none}
+
+.float .handle{
+  width:36px;height:4px;background:rgba(255,255,255,.3);border-radius:99px;
+  margin:0 auto 10px;
+}
+.float .head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.float .head .moon{
+  width:30px;height:30px;border-radius:10px;
+  background:rgba(255,217,122,.18);color:var(--moon);
+  display:grid;place-items:center;flex:none;
+}
+.float .head .text b{display:block;font-size:13px;font-weight:600;line-height:1.2}
+.float .head .text small{display:block;font-size:11px;opacity:.7;margin-top:1px}
+.float .time{
+  font-family:ui-monospace,"JetBrains Mono",monospace;
+  font-size:34px;font-weight:700;letter-spacing:-.02em;text-align:center;
+  margin:6px 0 10px;font-variant-numeric:tabular-nums;
+}
+.float .ring{position:absolute;top:14px;right:14px;width:36px;height:36px}
+.float .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.float .ring circle{fill:none;stroke-width:3}
+.float .ring .track{stroke:rgba(255,255,255,.18)}
+.float .ring .fill{stroke:var(--moon);stroke-linecap:round;stroke-dasharray:88;stroke-dashoffset:22}
+
+.float .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.float .ctrl button{
+  height:34px;border-radius:11px;border:0;
+  background:rgba(255,255,255,.16);color:#fff;
+  font-size:12px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:background 150ms;
+  font-family:inherit;
+}
+.float .ctrl button:hover{background:rgba(255,255,255,.26)}
+.float .ctrl button.go{background:var(--moon);color:#1a1a2e}
+.float .ctrl button.go:hover{background:#ffce5a}
+
+/* Collapsed state — thin pill on the right edge */
+.float .body{transition:opacity 180ms}
+.float.collapsed{width:36px;padding:10px 6px;border-radius:18px}
+.float.collapsed .handle,
+.float.collapsed .body,
+.float.collapsed .ring{display:none}
+.float .moon-mini{display:none;color:var(--moon)}
+.float.collapsed .moon-mini{display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+
+<div class="caption">Sleepy Lock · <b>悬浮窗样式预览</b></div>
+
+<div class="edge-hint"></div>
+
+<div class="float" id="float">
+  <div class="handle"></div>
+  <div class="moon-mini">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  </div>
+  <div class="body">
+    <div class="head">
+      <div class="moon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </div>
+      <div class="text"><b>Sleepy Lock</b><small>计时中</small></div>
+    </div>
+    <div class="ring">
+      <svg viewBox="0 0 36 36">
+        <circle class="track" cx="18" cy="18" r="14"/>
+        <circle class="fill" cx="18" cy="18" r="14"/>
+      </svg>
+    </div>
+    <div class="time">12:34</div>
+    <div class="ctrl">
+      <button>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        暂停
+      </button>
+      <button class="go">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+        停止
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="hint">
+  按住悬浮窗 <b>拖动</b> — 接近右屏幕边缘自动 <b>收起</b> 为小药丸 · 点击小药丸可 <b>展开</b>
+</div>
+
+<div class="demo-row">
+  <button onclick="setCollapsed(false)">展开态</button>
+  <button class="primary" onclick="setCollapsed(true)">收起态</button>
+</div>
+
+<script>
+const float = document.getElementById('float');
+let dragging = false;
+let startX = 0, startY = 0;
+let startRight = 40, startTop = 0;
+let moved = false;
+
+function setCollapsed(state) {
+  if (state) {
+    float.classList.add('collapsed');
+    float.style.right = '6px';
+  } else {
+    float.classList.remove('collapsed');
+    float.style.right = '40px';
+  }
+}
+
+function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+float.addEventListener('pointerdown', e => {
+  dragging = true;
+  moved = false;
+  float.classList.add('dragging');
+  float.setPointerCapture(e.pointerId);
+  startX = e.clientX;
+  startY = e.clientY;
+  const r = float.getBoundingClientRect();
+  startRight = window.innerWidth - r.right;
+  startTop = r.top;
+});
+
+float.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - startX;
+  const dy = e.clientY - startY;
+  if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+
+  const w = float.offsetWidth;
+  const h = float.offsetHeight;
+  const maxRight = window.innerWidth - w;
+  const newRight = clamp(startRight - dx, 0, maxRight);
+  const newTop = clamp(startTop + dy, 0, window.innerHeight - h);
+
+  float.style.right = newRight + 'px';
+  float.style.top = newTop + 'px';
+  float.style.left = 'auto';
+
+  if (newRight < 28) {
+    document.body.classList.add('show-edge');
+  } else {
+    document.body.classList.remove('show-edge');
+  }
+});
+
+float.addEventListener('pointerup', e => {
+  if (!dragging) return;
+  dragging = false;
+  float.classList.remove('dragging');
+  document.body.classList.remove('show-edge');
+  try { float.releasePointerCapture(e.pointerId); } catch (_) {}
+
+  const r = float.getBoundingClientRect();
+  const rightDist = window.innerWidth - r.right;
+
+  if (rightDist < 36) {
+    setCollapsed(true);
+  } else if (rightDist > 80 && float.classList.contains('collapsed')) {
+    setCollapsed(false);
+  }
+});
+
+float.addEventListener('click', () => {
+  if (float.classList.contains('collapsed') && !moved) {
+    setCollapsed(false);
+  }
+});
+</script>
+</body>
+</html>

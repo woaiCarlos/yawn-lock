@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sleepy Lock — 定时</title>
+<style>
+:root{
+  --bg:#fafafa; --surface:#ffffff;
+  --fg:#1a1a2e; --muted:#6b6b6b; --border:#ece6f8;
+  --accent:#6750a4; --accent-2:#b69df8; --accent-soft:#f3edff;
+  --accent-on:#ffffff;
+  --accent-hover:color-mix(in oklab,#6750a4,black 8%);
+  --success:#17a34a; --warn:#eab308; --danger:#dc2626;
+  --peach:#ffd6a8; --mint:#bde4d4; --sky:#cfe1ff; --lilac:#e3d6ff; --rose:#ffd0e0;
+  --night-1:#1a1a2e; --night-2:#2d2466; --night-3:#4b3aa8;
+  --font-display:"Inter",-apple-system,system-ui,sans-serif;
+  --font-body:"Inter",-apple-system,system-ui,sans-serif;
+  --font-mono:ui-monospace,"JetBrains Mono",monospace;
+  --radius-sm:12px; --radius-md:20px; --radius-lg:28px; --radius-xl:36px; --radius-pill:9999px;
+  --ease-standard:cubic-bezier(0.2,0,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  background:radial-gradient(ellipse at top,#2a2348 0%,#0e0e16 70%);
+  font-family:var(--font-body);-webkit-font-smoothing:antialiased;color:var(--fg);
+  min-height:100vh;display:grid;place-items:center;
+  padding:40px 20px;
+}
+
+/* ── Android phone bezel (Pixel-style, no notch) ── */
+.phone{
+  width:412px;height:900px;background:var(--bg);
+  border-radius:48px;overflow:hidden;
+  box-shadow:
+    0 0 0 2px #2a2a3a,
+    0 0 0 10px #14141c,
+    0 40px 80px rgba(0,0,0,.55);
+  position:relative;display:flex;flex-direction:column;
+}
+.statusbar{
+  height:34px;display:flex;justify-content:space-between;align-items:center;
+  padding:0 24px;font-size:13px;font-weight:600;color:var(--night-1);
+  background:transparent;flex:none;
+}
+.statusbar .icons{display:flex;align-items:center;gap:6px;color:var(--night-1)}
+.statusbar .icons svg{width:14px;height:14px}
+
+/* app body */
+.app{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 22px 140px;-ms-overflow-style:none;scrollbar-width:none;background:var(--bg)}
+.app::-webkit-scrollbar{display:none}
+
+/* Hero illustration card */
+.hero{
+  margin-top:8px;border-radius:var(--radius-xl);
+  background:linear-gradient(160deg,#2d2466 0%,#4b3aa8 60%,#7e63d6 100%);
+  padding:22px 22px 18px;position:relative;overflow:hidden;
+  color:#fff;min-height:200px;display:flex;flex-direction:column;justify-content:space-between;
+}
+.hero .stars{position:absolute;inset:0;pointer-events:none}
+.hero .stars span{position:absolute;background:#fff;border-radius:50%;opacity:.8;animation:twinkle 3s infinite ease-in-out}
+@keyframes twinkle{50%{opacity:.2;transform:scale(.7)}}
+.hero .row{display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:2}
+.hero h1{font-size:24px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;margin-bottom:4px}
+.hero .sub{font-size:13px;opacity:.75;font-weight:400}
+.hero .moon{width:108px;height:108px;flex:none}
+
+/* section header */
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px}
+.sec-head h2{font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--night-1)}
+.sec-head .hint{font-size:12px;color:var(--muted)}
+
+/* preset chips */
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.preset{
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:var(--radius-md);padding:16px 4px;text-align:center;
+  font-weight:600;cursor:pointer;transition:all 180ms var(--ease-standard);
+  color:var(--night-1);font-size:15px;line-height:1.2;
+}
+.preset:hover{border-color:var(--accent-2);background:var(--accent-soft)}
+.preset.active{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 6px 16px color-mix(in oklab,var(--accent),transparent 70%);
+  transform:translateY(-2px);
+}
+.preset small{display:block;font-size:11px;font-weight:500;opacity:.7;margin-top:2px}
+.preset.active small{opacity:.9}
+
+/* dial */
+.dial{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-xl);padding:24px 20px;text-align:center;position:relative;
+  background-image:
+    radial-gradient(circle at 50% 0%,var(--accent-soft) 0%,transparent 60%);
+}
+.dial .number{display:inline-flex;align-items:baseline;gap:4px}
+.dial .big{font-size:88px;font-weight:700;line-height:1;letter-spacing:-0.04em;font-variant-numeric:tabular-nums;color:var(--night-1)}
+.dial .unit{font-size:22px;color:var(--muted);font-weight:500;margin-left:6px}
+.dial .adj-row{display:flex;justify-content:center;gap:12px;margin-top:18px}
+.adj{
+  width:48px;height:48px;border:1.5px solid var(--border);background:#fff;
+  border-radius:50%;font-size:22px;color:var(--accent);font-weight:600;cursor:pointer;
+  display:grid;place-items:center;transition:all 150ms var(--ease-standard);
+}
+.adj:hover{background:var(--accent-soft);border-color:var(--accent-2)}
+.adj:active{transform:scale(.92)}
+
+/* slider */
+.slider-wrap{display:flex;align-items:center;gap:14px;margin-top:22px}
+.slider-wrap .lbl{font-size:12px;color:var(--muted);font-weight:500}
+input[type=range]{
+  flex:1;-webkit-appearance:none;height:8px;background:var(--border);
+  border-radius:99px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:28px;height:28px;border-radius:50%;
+  background:#fff;border:3px solid var(--accent);
+  box-shadow:0 2px 8px color-mix(in oklab,var(--accent),transparent 60%);
+  cursor:pointer;transition:transform 150ms var(--ease-standard);
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+
+/* status card (counting) */
+.status{
+  background:linear-gradient(160deg,#f3edff 0%,#ffe9f1 100%);
+  border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px 20px;
+  text-align:center;margin-top:18px;display:none;position:relative;overflow:hidden;
+}
+.status.show{display:block}
+.status .greeting{font-size:13px;color:var(--muted);margin-bottom:6px}
+.status .ring{width:200px;height:200px;margin:0 auto 14px;position:relative}
+.status .time{
+  position:absolute;inset:0;display:grid;place-items:center;text-align:center;flex-direction:column;
+}
+.status .time b{font-size:48px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--night-1)}
+.status .time small{font-size:12px;color:var(--muted);font-weight:500;display:block;margin-top:4px}
+.status .actions{display:flex;gap:10px;margin-top:16px}
+.btn{
+  flex:1;height:48px;border-radius:var(--radius-pill);
+  border:1.5px solid var(--border);background:#fff;font-size:14px;font-weight:600;
+  cursor:pointer;color:var(--night-1);transition:all 150ms var(--ease-standard);
+}
+.btn:hover{background:var(--accent-soft)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn.danger{color:var(--danger);border-color:color-mix(in oklab,var(--danger),white 70%)}
+.btn.danger:hover{background:color-mix(in oklab,var(--danger),white 92%)}
+
+/* floating CTA at bottom */
+.cta-wrap{
+  position:absolute;left:0;right:0;bottom:0;padding:14px 20px 22px;
+  background:linear-gradient(180deg,transparent,var(--bg) 35%);
+}
+.cta{
+  width:100%;height:60px;border:0;border-radius:var(--radius-pill);
+  background:var(--night-1);color:#fff;font-size:16px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 200ms var(--ease-standard);
+  box-shadow:0 12px 32px color-mix(in oklab,var(--night-1),transparent 70%);
+}
+.cta:hover{transform:translateY(-2px);box-shadow:0 16px 36px color-mix(in oklab,var(--night-1),transparent 60%)}
+.cta:active{transform:translateY(0)}
+.cta svg{width:20px;height:20px}
+
+/* FAB for overlay */
+.fab{
+  position:absolute;bottom:96px;right:18px;width:56px;height:56px;border-radius:18px;
+  background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;
+  box-shadow:0 10px 24px color-mix(in oklab,var(--accent),transparent 55%);border:0;cursor:pointer;
+  z-index:5;transition:transform 150ms var(--ease-standard);
+}
+.fab.show{display:flex}
+.fab:hover{transform:scale(1.06)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar">
+    <span>9:41</span>
+    <div class="icons">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h2v-8H2v8zm5 0h2V10H7v12zm5 0h2V6h-2v16zm5 0h2V2h-2v20z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7 3 2.7 5.2 0 8.8L12 22 24 8.8C21.3 5.2 17 3 12 3z"/></svg>
+      <svg viewBox="0 0 26 14" fill="none"><rect x="0.5" y="0.5" width="22" height="13" rx="3.5" stroke="currentColor"/><rect x="2" y="2" width="19" height="10" rx="2" fill="currentColor"/><rect x="23.5" y="4" width="1.5" height="6" rx="1" fill="currentColor"/></svg>
+    </div>
+  </div>
+
+  <div class="app" id="scroll">
+    <!-- Hero illustration -->
+    <div class="hero">
+      <div class="stars">
+        <span style="top:18px;left:30px;width:3px;height:3px"></span>
+        <span style="top:42px;left:120px;width:2px;height:2px;animation-delay:.5s"></span>
+        <span style="top:24px;right:80px;width:3px;height:3px;animation-delay:1s"></span>
+        <span style="top:60px;right:30px;width:2px;height:2px;animation-delay:1.5s"></span>
+        <span style="top:90px;left:60px;width:2px;height:2px;animation-delay:2s"></span>
+        <span style="top:8px;left:50%;width:3px;height:3px;animation-delay:.8s"></span>
+      </div>
+      <div class="row">
+        <div>
+          <h1>准备好休息了吗？</h1>
+          <div class="sub">选个时长，到点自动锁屏</div>
+        </div>
+        <svg class="moon" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <radialGradient id="moonGlow" cx="40%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#fff8d6"/>
+              <stop offset="100%" stop-color="#ffd97a"/>
+            </radialGradient>
+          </defs>
+          <!-- halo -->
+          <circle cx="60" cy="60" r="56" fill="#fff8d6" opacity=".15"/>
+          <circle cx="60" cy="60" r="48" fill="#fff8d6" opacity=".25"/>
+          <!-- moon body -->
+          <circle cx="60" cy="60" r="38" fill="url(#moonGlow)"/>
+          <!-- shadow side -->
+          <circle cx="76" cy="54" r="36" fill="#7e63d6" opacity=".75"/>
+          <!-- sleeping face -->
+          <path d="M48 62 Q52 65 56 62" stroke="#3a2870" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M68 62 Q72 65 76 62" stroke="#3a2870" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="56" cy="72" rx="3.5" ry="2" fill="#ff9aa2" opacity=".7"/>
+          <ellipse cx="68" cy="72" rx="3.5" ry="2" fill="#ff9aa2" opacity=".7"/>
+          <!-- z's -->
+          <text x="92" y="36" font-family="Inter" font-size="14" font-weight="700" fill="#fff" opacity=".85">z</text>
+          <text x="100" y="26" font-family="Inter" font-size="10" font-weight="700" fill="#fff" opacity=".65">z</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="sec-head">
+      <h2>快速预设</h2>
+      <span class="hint">点击切换</span>
+    </div>
+    <div class="presets" id="presets">
+      <div class="preset" data-sec="30">30<small>秒</small></div>
+      <div class="preset" data-sec="60">1<small>分钟</small></div>
+      <div class="preset active" data-sec="300">5<small>分钟</small></div>
+      <div class="preset" data-sec="600">10<small>分钟</small></div>
+    </div>
+
+    <!-- Custom dial -->
+    <div class="sec-head">
+      <h2>自定义</h2>
+      <span class="hint">± 键微调</span>
+    </div>
+    <div class="dial">
+      <div class="number">
+        <span class="big" id="big">5</span>
+        <span class="unit" id="unit">分钟</span>
+      </div>
+      <div class="adj-row">
+        <button class="adj" id="minus" aria-label="减少">−</button>
+        <button class="adj" id="plus" aria-label="增加">+</button>
+      </div>
+      <div class="slider-wrap">
+        <span class="lbl">1分</span>
+        <input type="range" id="range" min="1" max="120" value="5">
+        <span class="lbl">120分</span>
+      </div>
+    </div>
+
+    <!-- Counting status -->
+    <div class="status" id="status">
+      <div class="greeting">已经锁屏倒计时…</div>
+      <div class="ring">
+        <svg viewBox="0 0 200 200" width="200" height="200">
+          <circle cx="100" cy="100" r="88" fill="none" stroke="var(--border)" stroke-width="12"/>
+          <circle id="ring" cx="100" cy="100" r="88" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="552.92" stroke-dashoffset="0"/>
+        </svg>
+        <div class="time">
+          <div>
+            <b id="remain">05:00</b>
+            <small>剩余</small>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="add5">+5 分钟</button>
+        <button class="btn primary" id="pause">暂停</button>
+        <button class="btn danger" id="stop">停止</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" id="fab" title="悬浮窗">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm.5 5H11v6l5 3 .8-1.3-4.3-2.5z" fill="currentColor"/></svg>
+  </button>
+
+  <div class="cta-wrap">
+    <button class="cta" id="start">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5z" fill="currentColor"/></svg>
+      开始锁屏
+    </button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const big = $('#big'), unit = $('#unit'), range = $('#range');
+let minutes = 5;
+
+function setMinutes(m, fromSlider){
+  minutes = Math.max(0.5, Math.min(120, m));
+  if(minutes < 1){ big.textContent = (minutes*60|0); unit.textContent = '秒'; }
+  else { big.textContent = (minutes|0); unit.textContent = '分钟'; }
+  if(!fromSlider) range.value = minutes;
+  // sync chips
+  document.querySelectorAll('.preset').forEach(c => {
+    c.classList.toggle('active', Math.abs(+c.dataset.sec/60 - minutes) < 0.01);
+  });
+}
+$('#plus').onclick = () => setMinutes(minutes + (minutes>=10?5:1));
+$('#minus').onclick = () => setMinutes(minutes - (minutes>10?5:1));
+range.oninput = e => setMinutes(+e.target.value, true);
+document.querySelectorAll('.preset').forEach(c => c.onclick = () => setMinutes(+c.dataset.sec / 60));
+
+const start = $('#start'), status = $('#status'), fab = $('#fab');
+let totalMs = 0, leftMs = 0, timer = null, paused = false;
+const circ = 2 * Math.PI * 88;
+
+start.onclick = () => {
+  totalMs = leftMs = Math.round(minutes * 60 * 1000);
+  start.parentElement.style.display = 'none';
+  status.classList.add('show');
+  fab.classList.add('show');
+  paused = false;
+  $('#pause').textContent = '暂停';
+  tick();
+  if(timer) clearInterval(timer);
+  timer = setInterval(tick, 100);
+  // smooth scroll to status
+  setTimeout(()=> status.scrollIntoView({behavior:'smooth',block:'center'}), 50);
+};
+function tick(){
+  if(paused) return;
+  leftMs = Math.max(0, leftMs - 100);
+  const total = Math.floor(leftMs / 1000);
+  const m = Math.floor(total/60), s = total%60;
+  $('#remain').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const pct = 1 - leftMs / totalMs;
+  $('#ring').setAttribute('stroke-dashoffset', circ * pct);
+  if(leftMs <= 0){
+    clearInterval(timer); timer = null;
+    showLocked();
+  }
+}
+function showLocked(){
+  status.classList.remove('show');
+  fab.classList.remove('show');
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:absolute;inset:0;background:linear-gradient(160deg,#1a1a2e,#0e0e16);color:#fff;display:grid;place-items:center;z-index:20;border-radius:48px';
+  ov.innerHTML = `
+    <div style="text-align:center;padding:40px">
+      <svg width="92" height="92" viewBox="0 0 24 24" fill="none" style="margin:0 auto 20px;display:block">
+        <defs><radialGradient id="lg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff8d6"/><stop offset="100%" stop-color="#ffd97a"/></radialGradient></defs>
+        <circle cx="12" cy="12" r="11" fill="url(#lg)" opacity=".15"/>
+        <path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z" fill="#fff"/>
+      </svg>
+      <div style="font-size:22px;font-weight:600;margin-bottom:6px">已经锁屏</div>
+      <div style="font-size:13px;color:#a8a8c0;margin-bottom:32px">到点啦，按电源键唤醒</div>
+      <button id="reset" style="background:#fff;color:#1a1a2e;border:0;padding:14px 32px;border-radius:9999px;font-weight:600;font-size:15px;cursor:pointer">重新开始</button>
+    </div>`;
+  document.querySelector('.phone').appendChild(ov);
+  $('#reset').onclick = () => { ov.remove(); start.parentElement.style.display='block'; };
+}
+
+$('#pause').onclick = e => { paused = !paused; e.target.textContent = paused ? '继续' : '暂停'; };
+$('#stop').onclick = () => { clearInterval(timer); timer=null; status.classList.remove('show'); fab.classList.remove('show'); start.parentElement.style.display='block'; };
+$('#add5').onclick = () => { leftMs += 5*60*1000; totalMs += 5*60*1000; };
+$('#fab').onclick = () => {
+  if(paused){ paused = false; $('#pause').textContent='暂停'; }
+  else { paused = true; $('#pause').textContent='继续'; }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Build outputs
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+.DS_Store
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+
+# IDE
+.vscode/
+.fleet/
+
+# Java/Gradle
+*.class
+*.jar
+*.war
+
+# Node (rare)
+node_modules/
+package-lock.json
