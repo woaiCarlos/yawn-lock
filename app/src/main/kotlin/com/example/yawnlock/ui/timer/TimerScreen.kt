@@ -50,7 +50,7 @@ fun TimerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 140.dp),
+                .padding(top = 20.dp, bottom = 108.dp),
         ) {
             HeroCard(onPermissionsClick = onNavigatePermissions)
             SectionHeader("快速预设", "点击切换")

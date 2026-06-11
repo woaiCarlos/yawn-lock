@@ -22,7 +22,7 @@ import com.example.yawnlock.ui.theme.Purple900
 import kotlin.math.abs
 
 private val ITEM_HEIGHT = 48.dp
-private val VISIBLE_ITEMS = 5  // 多留 2 行给渐变遮罩做淡出空间
+private val VISIBLE_ITEMS = 5  // 5 行,中间那行正好在 y=120 中心
 private val FADE_ROWS = 2       // 上下各 2 行渐变隐藏
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -89,10 +89,12 @@ fun WheelColumn(
         )
 
         // 2. 列表(中间层)
+        // contentPadding(vertical = 24.dp) 让 5 行可见下中间行(index 2)正好在 y=120 中心,
+        // 跟「:」分隔符垂直对齐
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = ITEM_HEIGHT * 2),
+            contentPadding = PaddingValues(vertical = 24.dp),
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
         ) {
             items(count) { i ->
