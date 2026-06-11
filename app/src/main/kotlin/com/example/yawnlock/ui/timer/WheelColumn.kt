@@ -22,7 +22,7 @@ import com.example.yawnlock.ui.theme.Purple500
 import com.example.yawnlock.ui.theme.Purple900
 import kotlin.math.abs
 
-private val ITEM_HEIGHT = 48.dp
+private val ITEM_HEIGHT = 44.dp
 private val VISIBLE_ITEMS = 5
 private val FADE_ROWS = 1
 
@@ -40,10 +40,7 @@ fun WheelColumn(
     )
     val isProgrammaticScroll = remember { mutableStateOf(false) }
 
-    // 滚轮 → state: 用 layoutInfo.visibleItemsInfo 找离可见中心最近的 item
-    // 这是 wheel picker 业界标准做法。firstVisibleItemIndex 是"第一个可见 item",
-    // 不是"中心 item" —— 快速滑动时二者会错位(尤其 contentPadding 很大的情况),
-    // 用「中心最近 item」永远等于视觉上看到的中间那个
+    // 中心 item 检测 — 用 visibleItemsInfo 找离可见中心最近的 item
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.toList() }
             .collect { items ->
@@ -62,6 +59,7 @@ fun WheelColumn(
             }
     }
 
+    // state → 滚轮:瞬时跳到目标
     LaunchedEffect(selected) {
         val target = (selected - range.first).coerceAtLeast(0)
         if (target != listState.firstVisibleItemIndex) {
@@ -100,38 +98,33 @@ fun WheelColumn(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
+            // 关键:padding = 2 * itemHeight 让中心 item(index 0)顶在 y = 88(可见区中心 y = 110)
+            // centerY = (startOffset + endOffset) / 2 = 0 + 5*44*density / 2 = 110*density
+            // item 0 top = 2 * itemHeight * density = 88 * density, center = 88 + 22 = 110
             contentPadding = PaddingValues(vertical = ITEM_HEIGHT * 2),
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
         ) {
             items(count) { i ->
                 val value = range.first + i
                 val isSelected = value == selected
-                val fontSize = if (isSelected) 30.sp else 20.sp
-                val fontSizeDp = if (isSelected) 30.dp else 20.dp
-                // 关键:外层 Box (48dp) → 内层 Box (height = fontSizeDp) → Text
-                // 内层 Box 显式高度 = fontSize,Text 严格居中于内层 Box 中心,
-                // 完全消除 Compose Text baseline 偏移的影响
+                val fontSize = if (isSelected) 26.sp else 18.sp
+                val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                val color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.35f)
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(ITEM_HEIGHT),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .height(fontSizeDp)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = value.toString().padStart(2, '0'),
-                            fontSize = fontSize,
-                            lineHeight = fontSize,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.3f),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+                    Text(
+                        text = value.toString().padStart(2, '0'),
+                        fontSize = fontSize,
+                        fontWeight = fontWeight,
+                        color = color,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

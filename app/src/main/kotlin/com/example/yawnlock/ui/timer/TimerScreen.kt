@@ -202,7 +202,9 @@ private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
                     selected = hours,
                     onSelectedChange = { h ->
                         val newSec = h * 3600L + minutes * 60L + secs
-                        onChange(newSec.coerceIn(5L, 7200L))
+                        // 24h 上限:之前 7200L 把 hours wheel 强行 clamp 回 2h,虽然 range 0..23 但
+                        // 选了 5h 实际变 2h。现在 86400L 让 24h 真的可选
+                        onChange(newSec.coerceIn(5L, 86400L))
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -215,7 +217,7 @@ private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
                     selected = minutes,
                     onSelectedChange = { m ->
                         val newSec = hours * 3600L + m * 60L + secs
-                        onChange(newSec.coerceIn(5L, 7200L))
+                        onChange(newSec.coerceIn(5L, 86400L))
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -228,14 +230,14 @@ private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
                     selected = secs,
                     onSelectedChange = { s ->
                         val newSec = hours * 3600L + minutes * 60L + s
-                        onChange(newSec.coerceIn(5L, 7200L))
+                        onChange(newSec.coerceIn(5L, 86400L))
                     },
                     modifier = Modifier.weight(1f),
                 )
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "上下滚动调整 · 最多 2 小时",
+                "上下滚动调整 · 最多 24 小时",
                 fontSize = 11.sp,
                 color = Color(0xFF6B6B6B),
             )
