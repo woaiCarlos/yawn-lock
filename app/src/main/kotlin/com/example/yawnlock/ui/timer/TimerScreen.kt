@@ -132,35 +132,45 @@ private fun SectionHeader(title: String, hint: String) {
 @Composable
 private fun PresetChips(selected: Long, onSelect: (Long) -> Unit) {
     val presets = listOf(
+        300L to ("5" to "分钟"),
         600L to ("10" to "分钟"),
+        1200L to ("20" to "分钟"),
         1800L to ("30" to "分钟"),
         3600L to ("1" to "小时"),
         7200L to ("2" to "小时"),
     )
-    Row(
+    // 2 行 × 3 列,每个 chip 约 100dp 宽,比单行 6 个(44dp)更舒展
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 22.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        presets.forEach { (s, labels) ->
-            val (label, unit) = labels
-            val isSelected = selected == s
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSelected) Purple500 else Color.White)
-                    .clickable { onSelect(s) }
-                    .padding(vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+        presets.chunked(3).forEach { rowPresets ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(label,
-                    color = if (isSelected) Color.White else Purple900,
-                    fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(unit,
-                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else Purple900.copy(alpha = 0.7f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                rowPresets.forEach { (s, labels) ->
+                    val (label, unit) = labels
+                    val isSelected = selected == s
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) Purple500 else Color.White)
+                            .clickable { onSelect(s) }
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(label,
+                            color = if (isSelected) Color.White else Purple900,
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(unit,
+                            color = if (isSelected) Color.White.copy(alpha = 0.85f) else Purple900.copy(alpha = 0.7f),
+                            fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
             }
         }
     }

@@ -37,9 +37,13 @@ fun WheelColumn(
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = (selected - range.first).coerceAtLeast(0)
     )
+    // 程序性滚动标记:animateScrollToItem 期间为 true,scroll listener 跳过 onSelectedChange
+    // 避免动画中间值污染 state、再触发 selected LaunchedEffect 把原动画取消
+    val isProgrammaticScroll = remember { mutableStateOf(false) }
 
-    // 滚轮 → state: 吸附完成后回调
+    // 滚轮 → state: 吸附完成后回调(程序性滚动期间跳过,避免动画中间值回传)
     LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
+        if (isProgrammaticScroll.value) return@LaunchedEffect
         if (abs(listState.firstVisibleItemScrollOffset) < 8) {
             val newValue = range.first + listState.firstVisibleItemIndex
             if (newValue != selected && newValue in range) {
@@ -48,11 +52,16 @@ fun WheelColumn(
         }
     }
 
-    // state → 滚轮: 外部 selected 变化时滚过去
+    // state → 滚轮: 外部 selected 变化时滚过去(标记为程序性滚动)
     LaunchedEffect(selected) {
         val target = (selected - range.first).coerceAtLeast(0)
         if (target != listState.firstVisibleItemIndex) {
-            listState.animateScrollToItem(target)
+            isProgrammaticScroll.value = true
+            try {
+                listState.animateScrollToItem(target)
+            } finally {
+                isProgrammaticScroll.value = false
+            }
         }
     }
 
