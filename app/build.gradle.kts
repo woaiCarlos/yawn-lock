@@ -7,18 +7,39 @@ android {
     namespace = "com.example.yawnlock"
     compileSdk = 34
 
+    // Release 签名:密码从 gradle.properties 读(keystore 跟密码分离)
+    // 第一次发布前需要:
+    //   1) keytool -genkey -v -keystore app/release.keystore -alias yawn_lock -keyalg RSA -keysize 2048 -validity 10000
+    //   2) 把 release.keystore 加到 .gitignore
+    //   3) 在 ~/.gradle/gradle.properties 填 RELEASE_STORE_PASSWORD / RELEASE_KEY_PASSWORD
+    signingConfigs {
+        create("release") {
+            val storeFileProp = providers.gradleProperty("RELEASE_STORE_FILE")
+            val storePasswordProp = providers.gradleProperty("RELEASE_STORE_PASSWORD")
+            val keyAliasProp = providers.gradleProperty("RELEASE_KEY_ALIAS")
+            val keyPasswordProp = providers.gradleProperty("RELEASE_KEY_PASSWORD")
+            if (storeFileProp.isPresent) {
+                storeFile = file(storeFileProp.get())
+                storePassword = storePasswordProp.get()
+                keyAlias = keyAliasProp.get()
+                keyPassword = keyPasswordProp.get()
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.yawnlock"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
