@@ -1,12 +1,12 @@
 workflow: full
-phase: build
-build_mode: null
+phase: verify
+build_mode: subagent-driven-development
 build_pause: null
-isolation: null
+isolation: branch
 verify_mode: null
 base_ref: null
 design_doc: docs/superpowers/specs/2026-06-11-yawn-lock-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-11-yawn-lock.md
 verify_result: pending
 verification_report: null
 branch_status: pending
@@ -15,3 +15,5 @@ verified_at: null
 archived: false
 handoff_context: openspec/changes/yawn-lock/.comet/handoff/design-context.json
 handoff_hash: 6b49d8be6aa16b7e67ac01bb6727a813d5d49ca0c747bd1673395e46cf542387
+build_command: . ./.env.sh && ./gradlew :app:assembleDebug
+verify_command: . ./.env.sh && ./gradlew :app:assembleDebug

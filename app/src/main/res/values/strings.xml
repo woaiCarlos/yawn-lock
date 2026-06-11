@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">打哈欠</string>
+    <string name="notification_channel_name">倒计时中</string>
+    <string name="notification_channel_desc">显示剩余时间和停止按钮</string>
+    <string name="notification_title">打哈欠</string>
+    <string name="notification_stop">停止</string>
+    <string name="device_admin_explanation">用于到点强制锁屏,这是核心功能所需</string>
+    <string name="overlay_explanation">在其他 App 上方显示倒计时与控制气泡</string>
+    <string name="dnd_explanation">锁屏前自动静音 10 秒,可选</string>
+    <string name="locked_fallback_title">已经锁屏</string>
+    <string name="locked_fallback_subtitle">到点啦,按电源键唤醒</string>
+</resources>
