@@ -40,16 +40,20 @@ fun WheelColumn(
     )
     val isProgrammaticScroll = remember { mutableStateOf(false) }
 
-    // 滚轮 → state: 当 firstVisibleItemIndex 变化且 wheel 停止滚动时,更新 state
-    // 关键:isScrollInProgress=true (用户正在滑) 时**不更新 state** —— 否则 state→wheel
-    // 反馈循环会持续打断用户手滑,造成疯狂闪烁。让手滑自然完成,停下后再 sync。
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        if (isProgrammaticScroll.value) return@LaunchedEffect
-        if (listState.isScrollInProgress) return@LaunchedEffect
-        val newValue = range.first + listState.firstVisibleItemIndex
-        if (newValue != selected && newValue in range) {
-            onSelectedChange(newValue)
-        }
+    // 滚轮 → state: 用 snapshotFlow 同时观察 firstVisibleItemIndex 和 isScrollInProgress
+    // 关键:之前用 LaunchedEffect(firstVisibleItemIndex) 只在 index 变化时 fire。
+    // 手滑过程中 effect fire 但 return,手滑结束 index 不再变化 → effect 不再 fire → state 永远不更新 → 高亮丢失
+    // 改用 snapshotFlow 后,isScrollInProgress 变 false 时也会触发 effect,确保手滑结束后 state 同步
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.isScrollInProgress }
+            .collect { (index, isScrolling) ->
+                if (isProgrammaticScroll.value) return@collect
+                if (isScrolling) return@collect
+                val newValue = range.first + index
+                if (newValue != selected && newValue in range) {
+                    onSelectedChange(newValue)
+                }
+            }
     }
 
     // state → 滚轮: 外部 selected 变化时,scrollToItem 把目标放在最顶端
