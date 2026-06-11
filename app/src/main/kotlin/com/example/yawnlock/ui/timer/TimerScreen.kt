@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +61,7 @@ fun TimerScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 140.dp),
         ) {
-            HeroCard()
+            HeroCard(onPermissionsClick = onNavigatePermissions)
             SectionHeader("快速预设", "点击切换")
             PresetChips(
                 selected = seconds,
@@ -94,7 +95,7 @@ fun TimerScreen(
 }
 
 @Composable
-private fun HeroCard() {
+private fun HeroCard(onPermissionsClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,12 +104,21 @@ private fun HeroCard() {
             .background(Brush.linearGradient(listOf(Purple900, Purple700, Purple500)))
             .padding(22.dp),
     ) {
-        Column {
-            Text("准备好休息了吗?",
-                color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text("选个时长,到点自动锁屏",
-                color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("准备好休息了吗?",
+                    color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text("选个时长,到点自动锁屏",
+                    color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp)
+            }
+            IconButton(onClick = onPermissionsClick) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "权限",
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
