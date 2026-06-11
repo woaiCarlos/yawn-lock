@@ -11,6 +11,9 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.data.DeviceAdminReceiver
 import com.example.yawnlock.data.NotificationCenter
@@ -29,6 +32,22 @@ class CountdownService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val repo get() = (application as YawnApplication).timerRepository
     private var bubble: FloatingBubbleController? = null
+
+    private val processLifecycleObserver = LifecycleEventObserver { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_STOP -> {
+                // app 进后台:仅在倒计时还在跑时显示气泡
+                if (repo.state.value.isActive) {
+                    ensureBubble()
+                }
+            }
+            Lifecycle.Event.ON_START -> {
+                // app 回前台:隐藏气泡(用户看 Timer 屏幕的 StatusCard 即可)
+                bubble?.hide()
+            }
+            else -> { /* 其他事件忽略 */ }
+        }
+    }
 
     private val endRunnable = Runnable {
         val s = repo.state.value
@@ -99,6 +118,7 @@ class CountdownService : Service() {
     override fun onCreate() {
         super.onCreate()
         NotificationCenter.ensureChannel(this)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -132,8 +152,7 @@ class CountdownService : Service() {
 
         startForegroundCompat(state)
         scheduleEnd(state.remainingMs)
-        try { ensureBubble() }
-        catch (e: Exception) { android.util.Log.e(TAG, "ensureBubble failed", e) }
+        // 不再立即 ensureBubble —— 气泡由 ProcessLifecycle 的 ON_STOP 事件触发
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
@@ -210,6 +229,7 @@ class CountdownService : Service() {
     }
 
     override fun onDestroy() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(processLifecycleObserver)
         handler.removeCallbacks(ticker)
         handler.removeCallbacks(endRunnable)
         bubble?.hide()
