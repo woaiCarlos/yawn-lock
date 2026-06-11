@@ -6,7 +6,7 @@
 
 **Files:** `app/src/main/kotlin/com/example/yawnlock/service/FloatingBubbleController.kt`
 
-- [ ] **Step 1: 加 imports**
+- [x] **Step 1: 加 imports**
 
 在 `FloatingBubbleController.kt` 顶部添加:
 
@@ -22,7 +22,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 
 (如已存在则跳过)
 
-- [ ] **Step 2: 改写 init 块**
+- [x] **Step 2: 改写 init 块**
 
 替换整个 init 块:
 
@@ -57,7 +57,7 @@ import androidx.lifecycle.ViewModelStoreOwner
     }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```bash
 . ./.env.sh && ./gradlew :app:compileDebugKotlin 2>&1 | tail -10
@@ -65,7 +65,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 
 Expected: `BUILD SUCCESSFUL`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add app/src/main/kotlin/com/example/yawnlock/service/FloatingBubbleController.kt
@@ -93,7 +93,7 @@ context. Verified by [manual smoke test on real device]."
 
 **Files:** `app/src/main/kotlin/com/example/yawnlock/service/CountdownService.kt`, `app/src/main/AndroidManifest.xml`, `app/src/main/res/values/strings.xml`, `app/src/main/kotlin/com/example/yawnlock/service/LockedFallbackActivity.kt`, `app/src/main/kotlin/com/example/yawnlock/data/NotificationCenter.kt`
 
-- [ ] **Step 1: NotificationCenter 加 showAdminMissingWarning 方法**
+- [x] **Step 1: NotificationCenter 加 showAdminMissingWarning 方法**
 
 在 `app/src/main/kotlin/com/example/yawnlock/data/NotificationCenter.kt` 中添加:
 
@@ -114,7 +114,7 @@ context. Verified by [manual smoke test on real device]."
 
 (在文件末尾、最后一个方法外添加)
 
-- [ ] **Step 2: strings.xml 加新文案**
+- [x] **Step 2: strings.xml 加新文案**
 
 在 `app/src/main/res/values/strings.xml` 添加:
 
@@ -123,7 +123,7 @@ context. Verified by [manual smoke test on real device]."
     <string name="admin_missing_text">锁屏功能未启用,请前往权限页重新授权设备管理员</string>
 ```
 
-- [ ] **Step 3: AndroidManifest.xml 加 LockReceiver intent-filter**
+- [x] **Step 3: AndroidManifest.xml 加 LockReceiver intent-filter**
 
 修改:
 ```xml
@@ -143,7 +143,7 @@ context. Verified by [manual smoke test on real device]."
         </receiver>
 ```
 
-- [ ] **Step 4: LockedFallbackActivity 实际 UI**
+- [x] **Step 4: LockedFallbackActivity 实际 UI**
 
 替换 `app/src/main/kotlin/com/example/yawnlock/service/LockedFallbackActivity.kt`:
 
@@ -200,7 +200,7 @@ class LockedFallbackActivity : ComponentActivity() {
 }
 ```
 
-- [ ] **Step 5: CountdownService.handleStart 加诊断日志 + 授权检查**
+- [x] **Step 5: CountdownService.handleStart 加诊断日志 + 授权检查**
 
 替换 `CountdownService.kt` 中的 `handleStart`:
 
@@ -247,7 +247,7 @@ Add import at top: `import android.provider.Settings`(如已有则跳过)
     }
 ```
 
-- [ ] **Step 6: triggerLockNow 加诊断日志**
+- [x] **Step 6: triggerLockNow 加诊断日志**
 
 替换 `triggerLockNow` 方法:
 
@@ -274,7 +274,7 @@ Add import at top: `import android.provider.Settings`(如已有则跳过)
     }
 ```
 
-- [ ] **Step 7: LockReceiver.onReceive 加诊断日志**
+- [x] **Step 7: LockReceiver.onReceive 加诊断日志**
 
 替换 `app/src/main/kotlin/com/example/yawnlock/service/LockReceiver.kt`:
 
@@ -315,7 +315,7 @@ class LockReceiver : BroadcastReceiver() {
 }
 ```
 
-- [ ] **Step 8: 验证编译**
+- [x] **Step 8: 验证编译**
 
 ```bash
 . ./.env.sh && ./gradlew :app:compileDebugKotlin 2>&1 | tail -10
@@ -323,7 +323,7 @@ class LockReceiver : BroadcastReceiver() {
 
 Expected: `BUILD SUCCESSFUL`
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add app/src/main/AndroidManifest.xml app/src/main/res/values/strings.xml \
@@ -361,7 +361,7 @@ is missing."
 
 ## 3. Build 验证
 
-- [ ] **Step 1: 完整 assembleDebug**
+- [x] **Step 1: 完整 assembleDebug**
 
 ```bash
 . ./.env.sh && ./gradlew :app:assembleDebug 2>&1 | tail -20
@@ -369,13 +369,13 @@ is missing."
 
 Expected: `BUILD SUCCESSFUL`
 
-- [ ] **Step 2: 验证 APK**
+- [x] **Step 2: 验证 APK**
 
 ```bash
 ls -lh app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- [ ] **Step 3: 提交(若有配置变更)**
+- [x] **Step 3: 提交(若有配置变更)**
 
 ```bash
 git status
