@@ -31,6 +31,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.yawnlock.R
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.domain.DurationFormatter
@@ -39,7 +49,7 @@ import com.example.yawnlock.ui.theme.Night900
 import com.example.yawnlock.ui.theme.Purple500
 import com.example.yawnlock.ui.theme.Purple900
 
-class FloatingBubbleController(private val context: Context) {
+class FloatingBubbleController(private val context: Context) : LifecycleOwner, SavedStateRegistryOwner {
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val bubbleView: ComposeView =
         LayoutInflater.from(context).inflate(R.layout.floating_bubble, null) as ComposeView
@@ -74,8 +84,34 @@ class FloatingBubbleController(private val context: Context) {
         private const val TAG = "FloatingBubble"
     }
 
+    // Bubble 自身拥有 Lifecycle + SavedStateRegistry(它在 WindowManager 中没有 host)
+    private val lifecycleRegistry = LifecycleRegistry(this).apply {
+        currentState = Lifecycle.State.RESUMED
+    }
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    private val savedStateController = SavedStateRegistryController.create(this).also {
+        it.performAttach()
+        it.performRestore(null)
+    }
+    override val savedStateRegistry
+        get() = savedStateController.savedStateRegistry
+
+    private val viewModelStoreOwner = object : ViewModelStoreOwner {
+        override val viewModelStore: ViewModelStore = ViewModelStore()
+    }
+
     init {
-        bubbleView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+        // 显式注入 ViewTree owner —— Compose 在 WindowManager 视图中无 ViewTree
+        // 必须手动提供 Lifecycle / SavedStateRegistry / ViewModelStore
+        bubbleView.setViewTreeLifecycleOwner(this)
+        bubbleView.setViewTreeSavedStateRegistryOwner(this)
+        bubbleView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
+
+        bubbleView.setViewCompositionStrategy(
+            ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool
+        )
         bubbleView.setOnTouchListener { _, ev -> handleTouch(ev) }
     }
 
