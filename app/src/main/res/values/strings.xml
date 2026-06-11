@@ -12,4 +12,8 @@
     <string name="locked_fallback_subtitle">到点啦,按电源键唤醒</string>
     <string name="admin_missing_title">设备管理员未授权</string>
     <string name="admin_missing_text">锁屏功能未启用,请前往权限页重新授权设备管理员</string>
+    <string name="oem_warning_title">需要开启后台运行权限</string>
+    <string name="oem_warning_message">检测到您的设备是 %1$s。在该系统上,默认会关闭后台应用的运行,可能导致倒计时不能正常完成。请前往系统设置 → 电池/自启动管理,允许「打哈欠」在后台运行。</string>
+    <string name="oem_warning_goto">去设置</string>
+    <string name="oem_warning_dismiss">知道了</string>
 </resources>

@@ -11,9 +11,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.data.DeviceAdminReceiver
 import com.example.yawnlock.data.NotificationCenter
@@ -31,23 +28,7 @@ class CountdownService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val repo get() = (application as YawnApplication).timerRepository
-    private var bubble: FloatingBubbleController? = null
-
-    private val processLifecycleObserver = LifecycleEventObserver { _, event ->
-        when (event) {
-            Lifecycle.Event.ON_STOP -> {
-                // app 进后台:仅在倒计时还在跑时显示气泡
-                if (repo.state.value.isActive) {
-                    ensureBubble()
-                }
-            }
-            Lifecycle.Event.ON_START -> {
-                // app 回前台:隐藏气泡(用户看 Timer 屏幕的 StatusCard 即可)
-                bubble?.hide()
-            }
-            else -> { /* 其他事件忽略 */ }
-        }
-    }
+    private val bubble get() = (application as YawnApplication).bubbleController
 
     private val endRunnable = Runnable {
         val s = repo.state.value
@@ -74,6 +55,9 @@ class CountdownService : Service() {
             startActivity(fallback)
         }
         repo.onAlarmFired()
+        // 锁屏瞬间关闭气泡 —— 防止锁屏后 MainActivity.onStop 触发 ProcessLifecycle ON_STOP
+        // 把它重新显示在锁屏界面上
+        bubble.hide()
     }
 
     private fun scheduleEnd(durationMs: Long) {
@@ -104,7 +88,7 @@ class CountdownService : Service() {
                 refreshed.remainingMs,
                 refreshed.status is TimerStatus.Paused,
             )
-            bubble?.updateTime(refreshed.remainingMs)
+            bubble.updateTime(refreshed.remainingMs)
             if (refreshed.status is TimerStatus.Finished) {
                 stopSelf()
                 return
@@ -118,7 +102,7 @@ class CountdownService : Service() {
     override fun onCreate() {
         super.onCreate()
         NotificationCenter.ensureChannel(this)
-        ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
+        // 注意:气泡的 ProcessLifecycle 监听在 YawnApplication.onCreate 中注册
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -152,27 +136,33 @@ class CountdownService : Service() {
 
         startForegroundCompat(state)
         scheduleEnd(state.remainingMs)
-        // 不再立即 ensureBubble —— 气泡由 ProcessLifecycle 的 ON_STOP 事件触发
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
 
     private fun handlePause() {
+        // 幂等:无论 state 是不是已经是 Paused,都做清理
+        // (气泡先调 repo.pause() 再发 ACTION_PAUSE,service 看到 state=Paused 也要清 endRunnable / cancelAlarm)
         val state = repo.state.value
-        if (state.status !is TimerStatus.Counting) return
-        repo.pause()
+        if (state.status is TimerStatus.Counting) {
+            repo.pause()
+        }
         handler.removeCallbacks(endRunnable)
         cancelAlarm()
-        NotificationCenter.update(this, state.remainingMs, isPaused = true)
+        NotificationCenter.update(this, state.remainingMs, isPaused = state.status is TimerStatus.Paused)
     }
 
     private fun handleResume() {
+        // 幂等:无论 state 是不是已经是 Counting,都重新调度
+        // (气泡先调 repo.resume() 再发 ACTION_RESUME,service 也要重新 scheduleEnd 和 ticker)
         val state = repo.state.value
-        if (state.status !is TimerStatus.Paused) return
-        repo.resume()
+        if (state.status is TimerStatus.Paused) {
+            repo.resume()
+        }
         scheduleEnd(state.remainingMs)
         handler.removeCallbacks(ticker)
         handler.post(ticker)
+        NotificationCenter.update(this, state.remainingMs, isPaused = false)
     }
 
     private fun startForegroundCompat(state: TimerState) {
@@ -229,18 +219,10 @@ class CountdownService : Service() {
     }
 
     override fun onDestroy() {
-        ProcessLifecycleOwner.get().lifecycle.removeObserver(processLifecycleObserver)
         handler.removeCallbacks(ticker)
         handler.removeCallbacks(endRunnable)
-        bubble?.hide()
-        bubble = null
+        // 不在 Service.onDestroy 清理 bubble(由 Application 持有单例,ProcessLifecycle 决定显示)
         NotificationCenter.cancel(this)
         super.onDestroy()
-    }
-
-    private fun ensureBubble() {
-        if (bubble == null) {
-            bubble = FloatingBubbleController(this).also { it.show() }
-        }
     }
 }

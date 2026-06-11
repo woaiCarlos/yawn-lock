@@ -39,7 +39,13 @@ class TimerRepository {
     }
 
     fun stop() {
-        _state.value = TimerState()
+        // 保留 durationMs:用户停止后想再开一次,滑块位置 + 「开始计时」按钮 enabled,不用先拖滑块
+        val current = _state.value
+        _state.value = TimerState(
+            status = TimerStatus.Idle,
+            durationMs = current.durationMs,
+            remainingMs = current.durationMs,
+        )
     }
 
     fun tick() {
@@ -53,7 +59,11 @@ class TimerRepository {
     fun preview(durationMs: Long) {
         val current = _state.value
         if (current.isActive) return
+        // 从 Finished 状态切到 Idle:用户滑动滑块调整时间意味着「我要开始新的一次倒计时」
+        // 如果不重置,vm.start() 会因为 status=Finished(不是 Idle)而 return
+        val newStatus = if (current.status is TimerStatus.Finished) TimerStatus.Idle else current.status
         _state.value = current.copy(
+            status = newStatus,
             durationMs = durationMs,
             remainingMs = durationMs,
         )

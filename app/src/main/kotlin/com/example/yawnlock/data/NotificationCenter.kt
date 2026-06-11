@@ -34,12 +34,12 @@ object NotificationCenter {
     fun build(context: Context, remainingMs: Long, isPaused: Boolean): Notification {
         val openAppIntent = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val stopIntent = PendingIntent.getBroadcast(
             context, 1,
             Intent(context, StopReceiver::class.java).setAction(StopReceiver.ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val title = if (isPaused) "已暂停" else "剩余 ${DurationFormatter.toMmSs(remainingMs)}"
         return NotificationCompat.Builder(context, CHANNEL_ID)
@@ -47,6 +47,8 @@ object NotificationCenter {
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(title)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(openAppIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(R.drawable.ic_stop, context.getString(R.string.notification_stop), stopIntent)
