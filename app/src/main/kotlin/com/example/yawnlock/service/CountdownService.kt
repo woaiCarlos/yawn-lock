@@ -72,7 +72,11 @@ class CountdownService : Service() {
         if (state.status !is TimerStatus.Counting) return
         startForegroundCompat(state)
         scheduleAlarm(state)
-        ensureBubble()
+        try {
+            ensureBubble()
+        } catch (e: Exception) {
+            android.util.Log.w("CountdownService", "bubble show failed; ticker continues", e)
+        }
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
