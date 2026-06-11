@@ -4,58 +4,42 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.TextView
 import com.example.yawnlock.R
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.domain.DurationFormatter
 import com.example.yawnlock.domain.TimerStatus
-import com.example.yawnlock.ui.theme.Night900
-import com.example.yawnlock.ui.theme.Purple500
-import com.example.yawnlock.ui.theme.Purple900
 
-class FloatingBubbleController(private val context: Context) : LifecycleOwner, SavedStateRegistryOwner {
+class FloatingBubbleController(private val context: Context) {
+    companion object {
+        private const val TAG = "FloatingBubble"
+        private const val EXPANDED_WIDTH_DP = 200
+        private const val COLLAPSED_WIDTH_DP = 36
+        private const val EDGE_MARGIN_DP = 6
+    }
+
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val bubbleView: ComposeView =
-        LayoutInflater.from(context).inflate(R.layout.floating_bubble, null) as ComposeView
+    private val bubbleView: View =
+        LayoutInflater.from(context).inflate(R.layout.floating_bubble, null)
+    private val collapsedView: View = bubbleView.findViewById(R.id.bubble_collapsed)
+    private val expandedView: View = bubbleView.findViewById(R.id.bubble_expanded)
+    private val timeView: TextView = bubbleView.findViewById(R.id.bubble_time)
+    private val subtitleView: TextView = bubbleView.findViewById(R.id.bubble_subtitle)
+    private val pauseBtn: Button = bubbleView.findViewById(R.id.bubble_pause)
+    private val stopBtn: Button = bubbleView.findViewById(R.id.bubble_stop)
 
     private val params = WindowManager.LayoutParams(
-        dp(200), WindowManager.LayoutParams.WRAP_CONTENT,
+        dp(EXPANDED_WIDTH_DP), WindowManager.LayoutParams.WRAP_CONTENT,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -70,92 +54,72 @@ class FloatingBubbleController(private val context: Context) : LifecycleOwner, S
         y = dp(300)
     }
 
-    private var collapsed by mutableStateOf(false)
-    private var remainingMs by mutableStateOf(0L)
-    private var isPaused by mutableStateOf(false)
-
     private var startX = 0f
     private var startY = 0f
     private var startParamsX = 0
     private var startParamsY = 0
     private var moved = false
-
-    companion object {
-        private const val TAG = "FloatingBubble"
-    }
-
-    // Bubble 自身拥有 Lifecycle + SavedStateRegistry(它在 WindowManager 中没有 host)
-    private val lifecycleRegistry = LifecycleRegistry(this).apply {
-        currentState = Lifecycle.State.RESUMED
-    }
-    override val lifecycle: Lifecycle
-        get() = lifecycleRegistry
-
-    private val savedStateController = SavedStateRegistryController.create(this).also {
-        it.performAttach()
-        it.performRestore(null)
-    }
-    override val savedStateRegistry
-        get() = savedStateController.savedStateRegistry
-
-    private val viewModelStoreOwner = object : ViewModelStoreOwner {
-        override val viewModelStore: ViewModelStore = ViewModelStore()
-    }
+    private var collapsed = false
+    private var attached = false
 
     init {
-        // 显式注入 ViewTree owner —— Compose 在 WindowManager 视图中无 ViewTree
-        // 必须手动提供 Lifecycle / SavedStateRegistry / ViewModelStore
-        bubbleView.setViewTreeLifecycleOwner(this)
-        bubbleView.setViewTreeSavedStateRegistryOwner(this)
-        bubbleView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
-
-        bubbleView.setViewCompositionStrategy(
-            ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool
-        )
+        // 默认展开
+        expandedView.visibility = View.VISIBLE
+        collapsedView.visibility = View.GONE
         bubbleView.setOnTouchListener { _, ev -> handleTouch(ev) }
+        pauseBtn.setOnClickListener { togglePause() }
+        stopBtn.setOnClickListener { stopCountdown() }
     }
 
     fun show() {
+        if (attached) {
+            Log.d(TAG, "show: already attached, skip")
+            return
+        }
+        // 根据当前 collapsed 状态调整初始 width
+        params.width = if (collapsed) dp(COLLAPSED_WIDTH_DP) else dp(EXPANDED_WIDTH_DP)
         try {
             wm.addView(bubbleView, params)
+            attached = true
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "addView failed; bubble will not show", e)
-            return  // addView failed, don't setContent on a not-attached view
+            Log.e(TAG, "addView failed; bubble will not show", e)
+            return
         }
-        // view is now attached; safe to setContent (Compose can find view tree owner)
-        bubbleView.setContent {
-            BubbleContent(
-                remainingMs = remainingMs,
-                isPaused = isPaused,
-                collapsed = collapsed,
-                onPauseToggle = ::togglePause,
-                onStop = ::stopCountdown,
-            )
-        }
-        // sync initial state
         val s = (context.applicationContext as YawnApplication).timerRepository.state.value
-        remainingMs = s.remainingMs
-        isPaused = s.status is TimerStatus.Paused
+        timeView.text = DurationFormatter.toMmSs(s.remainingMs)
+        updateStatus(s.status is TimerStatus.Paused)
     }
 
     fun hide() {
-        try { wm.removeView(bubbleView) } catch (_: Exception) {}
+        if (!attached) return
+        try {
+            wm.removeView(bubbleView)
+            attached = false
+        } catch (_: Exception) {}
     }
 
     fun updateTime(ms: Long) {
-        remainingMs = ms
-        isPaused = (context.applicationContext as YawnApplication).timerRepository.state.value.status is TimerStatus.Paused
+        timeView.text = DurationFormatter.toMmSs(ms)
+    }
+
+    fun updateStatus(isPaused: Boolean) {
+        subtitleView.text = if (isPaused) "已暂停" else "计时中"
+        pauseBtn.text = if (isPaused) "继续" else "暂停"
     }
 
     private fun togglePause() {
         val repo = (context.applicationContext as YawnApplication).timerRepository
         if (repo.state.value.status is TimerStatus.Paused) {
             repo.resume()
+            // 自己立即更新 UI:不等 service(否则 service 看到 state 已是 Counting 还会跑 idempotent cleanup,
+            // 但 in-app 路径在 service 那更新 UI 会变成双重来源不一致)
+            updateStatus(isPaused = false)
             context.startService(
                 Intent(context, CountdownService::class.java).setAction(CountdownService.ACTION_RESUME)
             )
         } else {
             repo.pause()
+            updateStatus(isPaused = true)
             context.startService(
                 Intent(context, CountdownService::class.java).setAction(CountdownService.ACTION_PAUSE)
             )
@@ -165,6 +129,8 @@ class FloatingBubbleController(private val context: Context) : LifecycleOwner, S
     private fun stopCountdown() {
         val repo = (context.applicationContext as YawnApplication).timerRepository
         repo.stop()
+        // 关闭悬浮窗:ProcessLifecycle 还停在 ON_STOP 状态,不会自动关气泡,需要手动 hide
+        hide()
         context.startService(
             Intent(context, CountdownService::class.java).setAction(CountdownService.ACTION_STOP)
         )
@@ -190,128 +156,62 @@ class FloatingBubbleController(private val context: Context) : LifecycleOwner, S
                 try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
             }
             MotionEvent.ACTION_UP -> {
-                if (moved && params.x < dp(36)) collapse()
-                else if (!moved && collapsed) expand()
+                if (moved) {
+                    // 拖动后:气泡必须拖到屏幕外(部分超出可见区)才折叠
+                    val displayMetrics = context.resources.displayMetrics
+                    val screenWidth = displayMetrics.widthPixels
+                    val bubbleLeft = params.x
+                    val bubbleRight = params.x + bubbleView.width
+                    if (bubbleLeft < 0) {
+                        // 气泡左边缘超出屏幕左边缘 → 折叠到左
+                        collapseToLeft()
+                    } else if (bubbleRight > screenWidth) {
+                        // 气泡右边缘超出屏幕右边缘 → 折叠到右
+                        collapseToRight()
+                    }
+                    // 否则:停在拖到的位置,保持展开
+                } else if (collapsed) {
+                    // 没移动 + 当前是折叠态 → 展开
+                    expand()
+                }
+                // 没移动 + 展开态:什么都不做(避免误触收起)
             }
         }
         return true
     }
 
-    private fun collapse() {
+    private fun collapseToLeft() {
         collapsed = true
-        params.width = dp(36)
-        params.x = dp(6)
+        expandedView.visibility = View.GONE
+        collapsedView.visibility = View.VISIBLE
+        params.width = dp(COLLAPSED_WIDTH_DP)
+        params.x = dp(EDGE_MARGIN_DP)
+        try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
+    }
+
+    private fun collapseToRight() {
+        collapsed = true
+        expandedView.visibility = View.GONE
+        collapsedView.visibility = View.VISIBLE
+        val displayMetrics = context.resources.displayMetrics
+        params.width = dp(COLLAPSED_WIDTH_DP)
+        // 右侧贴边:右边距 EDGE_MARGIN_DP
+        params.x = displayMetrics.widthPixels - dp(COLLAPSED_WIDTH_DP) - dp(EDGE_MARGIN_DP)
         try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
     }
 
     private fun expand() {
         collapsed = false
-        params.width = dp(200)
-        params.x = dp(40)
+        expandedView.visibility = View.VISIBLE
+        collapsedView.visibility = View.GONE
+        val displayMetrics = context.resources.displayMetrics
+        params.width = dp(EXPANDED_WIDTH_DP)
+        // 展开默认位置:左侧 40dp,但不能超出屏幕
+        val maxX = (displayMetrics.widthPixels - dp(EXPANDED_WIDTH_DP)).coerceAtLeast(0)
+        params.x = dp(40).coerceAtMost(maxX)
         try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
     }
 
     private fun dp(value: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), context.resources.displayMetrics).toInt()
-}
-
-@Composable
-private fun BubbleContent(
-    remainingMs: Long,
-    isPaused: Boolean,
-    collapsed: Boolean,
-    onPauseToggle: () -> Unit,
-    onStop: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(Brush.linearGradient(listOf(Purple900, Purple500)))
-            .padding(14.dp),
-    ) {
-        if (collapsed) {
-            Icon(
-                painter = painterResource(R.drawable.ic_moon),
-                contentDescription = "展开",
-                tint = Color(0xFFFFD97A),
-                modifier = Modifier.size(16.dp).clickable { onPauseToggle.run {} },
-            )
-        } else {
-            Column {
-                // handle bar
-                Box(
-                    modifier = Modifier
-                        .size(width = 36.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.3f))
-                        .align(Alignment.CenterHorizontally),
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFFFD97A).copy(alpha = 0.18f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_moon),
-                            contentDescription = null,
-                            tint = Color(0xFFFFD97A),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text("Sleepy Lock", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(if (isPaused) "已暂停" else "计时中", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    DurationFormatter.toMmSs(remainingMs),
-                    color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BubbleButton(
-                        label = if (isPaused) "继续" else "暂停",
-                        onClick = onPauseToggle,
-                        modifier = Modifier.weight(1f),
-                        color = Color.White.copy(alpha = 0.16f),
-                        textColor = Color.White,
-                    )
-                    BubbleButton(
-                        label = "停止",
-                        onClick = onStop,
-                        modifier = Modifier.weight(1f),
-                        color = Color(0xFFFFD97A),
-                        textColor = Night900,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BubbleButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    color: Color,
-    textColor: Color,
-) {
-    Box(
-        modifier = modifier
-            .height(34.dp)
-            .clip(RoundedCornerShape(11.dp))
-            .background(color)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = textColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-    }
 }
