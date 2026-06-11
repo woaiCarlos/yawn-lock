@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.data.DeviceAdminReceiver
 import com.example.yawnlock.data.NotificationCenter
@@ -22,6 +23,7 @@ class CountdownService : Service() {
         const val ACTION_STOP = "com.example.yawnlock.STOP"
         const val ACTION_PAUSE = "com.example.yawnlock.PAUSE"
         const val ACTION_RESUME = "com.example.yawnlock.RESUME"
+        private const val TAG = "CountdownService"
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -37,9 +39,17 @@ class CountdownService : Service() {
     private fun triggerLockNow() {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val admin = ComponentName(this, DeviceAdminReceiver::class.java)
-        if (dpm.isAdminActive(admin)) {
-            dpm.lockNow()
+        val isAdmin = dpm.isAdminActive(admin)
+        android.util.Log.d(TAG, "triggerLockNow: isAdminActive=$isAdmin")
+        if (isAdmin) {
+            try {
+                dpm.lockNow()
+                android.util.Log.d(TAG, "dpm.lockNow() called")
+            } catch (e: SecurityException) {
+                android.util.Log.e(TAG, "dpm.lockNow() threw SecurityException", e)
+            }
         } else {
+            android.util.Log.w(TAG, "falling back to LockedFallbackActivity")
             val fallback = Intent(this, LockedFallbackActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(fallback)
@@ -104,13 +114,26 @@ class CountdownService : Service() {
     private fun handleStart() {
         val state = repo.state.value
         if (state.status !is TimerStatus.Counting) return
+
+        // 诊断:start 时的授权状态(用户可在 adb logcat 中验证)
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(this, DeviceAdminReceiver::class.java)
+        val isAdmin = dpm.isAdminActive(admin)
+        val canOverlay = Settings.canDrawOverlays(this)
+        android.util.Log.d(TAG, "handleStart: isAdminActive=$isAdmin, canDrawOverlays=$canOverlay, status=${state.status}, remainingMs=${state.remainingMs}")
+
+        if (!isAdmin) {
+            android.util.Log.w(TAG, "device admin NOT active; lockNow() will fall back to LockedFallbackActivity")
+            NotificationCenter.showAdminMissingWarning(this)
+        }
+        if (!canOverlay) {
+            android.util.Log.w(TAG, "overlay permission NOT granted; bubble may not show")
+        }
+
         startForegroundCompat(state)
         scheduleEnd(state.remainingMs)
-        try {
-            ensureBubble()
-        } catch (e: Exception) {
-            android.util.Log.w("CountdownService", "bubble show failed; ticker continues", e)
-        }
+        try { ensureBubble() }
+        catch (e: Exception) { android.util.Log.e(TAG, "ensureBubble failed", e) }
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
