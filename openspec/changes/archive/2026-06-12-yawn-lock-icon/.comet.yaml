@@ -1,0 +1,16 @@
+workflow: tweak
+phase: archive
+build_mode: direct
+build_pause: null
+isolation: branch
+verify_mode: light
+base_ref: 9842701a6bc6a9abbf9689cfdd78fa8ce137c776
+design_doc: null
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-12-yawn-lock-icon-verify.md
+branch_status: handled
+created_at: 2026-06-12
+verified_at: 2026-06-12
+archived: true
+build_command: export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home" && ./gradlew :app:assembleDebug
