@@ -124,36 +124,53 @@ private fun PermissionRow(title: String, desc: String, granted: Boolean, onClick
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 左侧 icon 盒:已授权用实色紫,未授权用浅紫
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Purple50),
+                .size(48.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (granted) Purple500 else Purple50),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(R.drawable.ic_moon), null, tint = Purple500)
+            Icon(
+                painterResource(R.drawable.ic_moon), null,
+                tint = if (granted) Color.White else Purple500,
+            )
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(16.dp))
+        // 中间 title + desc
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.SemiBold, color = Purple900)
-            Spacer(Modifier.height(3.dp))
-            Text(desc, fontSize = 12.sp, color = Color(0xFF6B6B6B))
+            Text(
+                title,
+                fontWeight = FontWeight.SemiBold,
+                color = Purple900,
+                fontSize = 15.sp,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                desc,
+                fontSize = 12.sp,
+                color = Color(0xFF6B6B6B),
+                lineHeight = 17.sp,
+            )
         }
-        AssistChip(
-            onClick = onClick,
-            label = {
-                Text(
-                    if (granted) "已授权" else "未授权",
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                )
-            },
-            colors = AssistChipDefaults.assistChipColors(
-                containerColor = if (granted) Color(0xFFE6F7EC) else Color(0xFFFFF8DB),
-                labelColor = if (granted) Color(0xFF17A34A) else Color(0xFFA87000),
-            ),
-        )
+        Spacer(Modifier.width(8.dp))
+        // 右侧状态 pill:与 icon 盒同色系,已授权=紫底白字,未授权=浅紫底深紫字
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (granted) Purple500 else Purple50)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                if (granted) "已授权" else "未授权",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (granted) Color.White else Purple900,
+            )
+        }
     }
 }
