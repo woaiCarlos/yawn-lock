@@ -2,6 +2,8 @@
 comet_change: yawn-lock-polish
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-11-yawn-lock-polish
+status: final
 ---
 
 # Design: yawn-lock-polish — UI 调整 + Bug 修复

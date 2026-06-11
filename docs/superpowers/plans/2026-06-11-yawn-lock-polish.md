@@ -2,6 +2,7 @@
 change: yawn-lock-polish
 design-doc: docs/superpowers/specs/2026-06-11-yawn-lock-polish-design.md
 base-ref: 7a8a5eb1b8531eebcbdbff9d395323cf64aa6a7f
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 # yawn-lock-polish Implementation Plan
@@ -16,6 +17,7 @@ base-ref: 7a8a5eb1b8531eebcbdbff9d395323cf64aa6a7f
 
 **测试策略:** 沿用 v1 冒烟测试 8 步,新增 3 个场景(滑块秒级 / Timer→Permissions 导航 / 授权后能正常倒计时)。
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## File Map
@@ -30,6 +32,7 @@ base-ref: 7a8a5eb1b8531eebcbdbff9d395323cf64aa6a7f
 | `app/src/main/kotlin/com/example/yawnlock/service/FloatingBubbleController.kt` | 5.x 异常扩大 catch + lifecycle 策略 |
 | `app/src/main/kotlin/com/example/yawnlock/service/CountdownService.kt` | 6.x try/catch 包 ensureBubble |
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 1: UI — 滑块/预设/CTA 文字(秒级精度)
@@ -232,6 +235,7 @@ git add app/src/main/kotlin/com/example/yawnlock/ui/timer/TimerScreen.kt app/src
 git commit -m "feat(timer): rewrite preset/slider/CTA for second precision"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 2: Bug — Timer 屏幕 HeroCard 权限入口
@@ -299,6 +303,7 @@ git add app/src/main/kotlin/com/example/yawnlock/ui/timer/TimerScreen.kt
 git commit -m "feat(timer): add permissions entry icon in hero card"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 3: Bug — 权限实时刷新(Lifecycle 观察者)
@@ -409,6 +414,7 @@ git add app/src/main/kotlin/com/example/yawnlock/MainActivity.kt
 git commit -m "fix(perm): refresh permission state on activity resume"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 4: Bug — startDest remember 锁定
@@ -434,6 +440,7 @@ git add app/src/main/kotlin/com/example/yawnlock/MainActivity.kt
 git commit -m "fix(nav): lock startDest with remember to avoid recompose side-effects"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 5: Bug — 气泡异常 + Lifecycle 策略
@@ -488,6 +495,7 @@ git add app/src/main/kotlin/com/example/yawnlock/service/FloatingBubbleControlle
 git commit -m "fix(bubble): broaden exception catch + use detach-based dispose strategy"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 6: Bug — Service ensureBubble 防御
@@ -541,6 +549,7 @@ git add app/src/main/kotlin/com/example/yawnlock/service/CountdownService.kt
 git commit -m "fix(service): decouple ticker from bubble success in handleStart"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Task 7: Build + APK 验证
@@ -572,6 +581,7 @@ git add -A
 git commit -m "build: assembleDebug after polish changes" || echo "no changes to commit"
 ```
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## Self-Review
@@ -592,6 +602,7 @@ git commit -m "build: assembleDebug after polish changes" || echo "no changes to
   - `CountdownService.handleStart()` 改 try/catch Task 6
 - [x] **Scope check**: 6 个 task,每个 ≤ 50 行代码变更
 
+archived-with: 2026-06-11-yawn-lock-polish
 ---
 
 ## End of Plan

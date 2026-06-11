@@ -1,0 +1,17 @@
+workflow: hotfix
+phase: verify
+build_mode: subagent-driven-development
+build_pause: null
+isolation: branch
+verify_mode: full
+base_ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
+design_doc: null
+plan: docs/superpowers/plans/2026-06-11-yawn-lock-bugfix-1.md
+verify_result: pending
+verification_report: docs/superpowers/reports/2026-06-11-yawn-lock-bugfix-1-verify.md
+branch_status: pending
+created_at: 2026-06-11
+verified_at: null
+archived: false
+build_command: . ./.env.sh && ./gradlew :app:assembleDebug
+verify_command: . ./.env.sh && ./gradlew :app:assembleDebug
