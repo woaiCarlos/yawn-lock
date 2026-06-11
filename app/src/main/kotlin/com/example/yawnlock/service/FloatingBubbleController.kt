@@ -157,16 +157,16 @@ class FloatingBubbleController(private val context: Context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (moved) {
-                    // 拖动后:气泡必须拖到屏幕外(部分超出可见区)才折叠
+                    // 拖动后:气泡边缘只要顶到屏幕边缘(<= 0 或 >= screenWidth)就折叠
                     val displayMetrics = context.resources.displayMetrics
                     val screenWidth = displayMetrics.widthPixels
                     val bubbleLeft = params.x
                     val bubbleRight = params.x + bubbleView.width
-                    if (bubbleLeft < 0) {
-                        // 气泡左边缘超出屏幕左边缘 → 折叠到左
+                    if (bubbleLeft <= 0) {
+                        // 气泡左边缘顶到/超出屏幕左边缘 → 折叠到左
                         collapseToLeft()
-                    } else if (bubbleRight > screenWidth) {
-                        // 气泡右边缘超出屏幕右边缘 → 折叠到右
+                    } else if (bubbleRight >= screenWidth) {
+                        // 气泡右边缘顶到/超出屏幕右边缘 → 折叠到右
                         collapseToRight()
                     }
                     // 否则:停在拖到的位置,保持展开
