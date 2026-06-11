@@ -71,7 +71,7 @@ class FloatingBubbleController(private val context: Context) {
     private var moved = false
 
     init {
-        bubbleView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        bubbleView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
         bubbleView.setContent {
             BubbleContent(
                 remainingMs = remainingMs,
@@ -87,8 +87,8 @@ class FloatingBubbleController(private val context: Context) {
     fun show() {
         try {
             wm.addView(bubbleView, params)
-        } catch (e: WindowManager.BadTokenException) {
-            // token 失效,静默忽略
+        } catch (e: Exception) {
+            // 含 BadTokenException / SecurityException / RuntimeException,静默忽略
         }
         // 启动时同步当前状态
         val s = (context.applicationContext as YawnApplication).timerRepository.state.value
