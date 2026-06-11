@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.yawnlock.ui.theme.Purple500
@@ -22,8 +23,8 @@ import com.example.yawnlock.ui.theme.Purple900
 import kotlin.math.abs
 
 private val ITEM_HEIGHT = 48.dp
-private val VISIBLE_ITEMS = 5  // 5 行,中间那行正好在 y=120 中心
-private val FADE_ROWS = 2       // 上下各 2 行渐变隐藏
+private val VISIBLE_ITEMS = 5  // 5 行,中间行(item 0)视觉中心在 y=120 可见区中心
+private val FADE_ROWS = 1       // 上下各 1 行渐变,选中 + 1 个邻居可见,保留 wheel 感
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -38,7 +39,6 @@ fun WheelColumn(
         initialFirstVisibleItemIndex = (selected - range.first).coerceAtLeast(0)
     )
     // 程序性滚动标记:animateScrollToItem 期间为 true,scroll listener 跳过 onSelectedChange
-    // 避免动画中间值污染 state、再触发 selected LaunchedEffect 把原动画取消
     val isProgrammaticScroll = remember { mutableStateOf(false) }
 
     // 滚轮 → state: 吸附完成后回调(程序性滚动期间跳过,避免动画中间值回传)
@@ -70,7 +70,7 @@ fun WheelColumn(
             .height(ITEM_HEIGHT * VISIBLE_ITEMS),
         contentAlignment = Alignment.Center,
     ) {
-        // 1. 中央胶囊高亮(底层):带横向渐变,中间稍亮两边淡
+        // 1. 中央胶囊高亮(底层):带横向渐变
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -89,9 +89,8 @@ fun WheelColumn(
         )
 
         // 2. 列表(中间层)
-        // contentPadding(vertical = 96.dp = 2 * ITEM_HEIGHT) 让 item 0 顶在 y=96,
-        // 视觉中心在 y=120 (可见区 240dp 的中心),跟「:」分隔符垂直对齐
-        // 同时 firstVisibleItemIndex 直接对应「中心选中的值」(无需偏移补偿)
+        // contentPadding(vertical = 96.dp) 让 item 0 顶在 y=96、视觉中心在 y=120,
+        // 正好在可见区 240dp 中心,跟「:」分隔符垂直对齐
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -101,23 +100,29 @@ fun WheelColumn(
             items(count) { i ->
                 val value = range.first + i
                 val isSelected = value == selected
+                val fontSize = if (isSelected) 30.sp else 20.sp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(ITEM_HEIGHT),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // 关键:lineHeight = fontSize 显式相等,消除 Compose 默认 lineHeight padding
+                    // (默认 1.2-1.5x),让数字视觉中心跟 Box 几何中心精确对齐
                     Text(
                         text = value.toString().padStart(2, '0'),
-                        fontSize = if (isSelected) 32.sp else 20.sp,
+                        fontSize = fontSize,
+                        lineHeight = fontSize,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.35f),
+                        color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.3f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
         }
 
-        // 3. 顶部渐变遮罩(顶层):白色到透明,把顶部 2 行隐藏
+        // 3. 顶部渐变遮罩(顶层):线性 white → transparent,1 行高
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -126,13 +131,12 @@ fun WheelColumn(
                 .background(
                     Brush.verticalGradient(
                         0f to Color.White,
-                        0.5f to Color.White,
                         1f to Color.White.copy(alpha = 0f),
                     )
                 )
         )
 
-        // 4. 底部渐变遮罩(顶层):透明到白色,把底部 2 行隐藏
+        // 4. 底部渐变遮罩(顶层):线性 transparent → white,1 行高
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,7 +145,6 @@ fun WheelColumn(
                 .background(
                     Brush.verticalGradient(
                         0f to Color.White.copy(alpha = 0f),
-                        0.5f to Color.White,
                         1f to Color.White,
                     )
                 )
