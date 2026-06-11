@@ -77,6 +77,12 @@ fun TimerScreen(
                 val intent = Intent(context, CountdownService::class.java)
                     .setAction(CountdownService.ACTION_START)
                 context.startForegroundService(intent)
+                // 主动跳到手机主屏:让 timer 在后台跑,悬浮窗跟着出来,用户回到桌面
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(homeIntent)
             },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
