@@ -55,7 +55,7 @@ fun WheelColumn(
         if (target != listState.firstVisibleItemIndex) {
             isProgrammaticScroll.value = true
             try {
-                listState.animateScrollToItem(target)
+                listState.scrollToItem(target, 0)
             } finally {
                 isProgrammaticScroll.value = false
             }
