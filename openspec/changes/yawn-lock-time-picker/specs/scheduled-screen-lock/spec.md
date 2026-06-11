@@ -24,10 +24,11 @@ The Timer screen SHALL provide a clock-style time picker with three independent 
 
 - **WHEN** the user navigates to the custom time section
 - **THEN** the UI MUST display three vertical wheel columns side by side, separated by ":"
-- **AND** the first column ranges over hours (0..2), the second over minutes (0..59), the third over seconds (0..59)
+- **AND** the first column ranges over hours (0..23), the second over minutes (0..59), the third over seconds (0..59)
 - **AND** the currently selected value in each column MUST be visually highlighted (larger font + bold)
 - **AND** a pill-shaped highlight bar MUST appear at the center selected row
-- **AND** white-to-transparent gradient masks MUST fade the top 2 and bottom 2 items out
+- **AND** white-to-transparent gradient masks MUST fade the top and bottom items out
+- **AND** the selected value's visual center MUST be precisely aligned with the ":" separator (using lineHeight=fontSize + a -2dp offset to compensate for font baseline)
 
 #### Scenario: Scroll-to-select behavior
 

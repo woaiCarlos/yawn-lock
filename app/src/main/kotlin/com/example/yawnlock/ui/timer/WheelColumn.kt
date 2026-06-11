@@ -109,6 +109,8 @@ fun WheelColumn(
                 ) {
                     // 关键:lineHeight = fontSize 显式相等,消除 Compose 默认 lineHeight padding
                     // (默认 1.2-1.5x),让数字视觉中心跟 Box 几何中心精确对齐
+                    // 再加 Modifier.offset(y = -2.dp) 补偿字体 baseline 偏移(Compose 字体
+                    // ascent 约 75% / descent 约 25%,字形视觉中心比 bounding box 中心低 ~2dp)
                     Text(
                         text = value.toString().padStart(2, '0'),
                         fontSize = fontSize,
@@ -116,7 +118,9 @@ fun WheelColumn(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.3f),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = -2.dp),
                     )
                 }
             }

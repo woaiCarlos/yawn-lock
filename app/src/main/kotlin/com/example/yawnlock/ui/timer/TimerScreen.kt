@@ -198,7 +198,7 @@ private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 WheelColumn(
-                    range = 0..2,
+                    range = 0..23,
                     selected = hours,
                     onSelectedChange = { h ->
                         val newSec = h * 3600L + minutes * 60L + secs
