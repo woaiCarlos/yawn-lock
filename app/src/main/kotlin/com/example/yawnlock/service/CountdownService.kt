@@ -1,6 +1,8 @@
 package com.example.yawnlock.service
 
 import android.app.Service
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -9,6 +11,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import com.example.yawnlock.YawnApplication
+import com.example.yawnlock.data.DeviceAdminReceiver
 import com.example.yawnlock.data.NotificationCenter
 import com.example.yawnlock.domain.TimerState
 import com.example.yawnlock.domain.TimerStatus
@@ -24,6 +27,37 @@ class CountdownService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val repo get() = (application as YawnApplication).timerRepository
     private var bubble: FloatingBubbleController? = null
+
+    private val endRunnable = Runnable {
+        val s = repo.state.value
+        if (s.status !is TimerStatus.Counting) return@Runnable
+        triggerLockNow()
+    }
+
+    private fun triggerLockNow() {
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(this, DeviceAdminReceiver::class.java)
+        if (dpm.isAdminActive(admin)) {
+            dpm.lockNow()
+        } else {
+            val fallback = Intent(this, LockedFallbackActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(fallback)
+        }
+        repo.onAlarmFired()
+    }
+
+    private fun scheduleEnd(durationMs: Long) {
+        handler.removeCallbacks(endRunnable)
+        if (durationMs <= 5L * 60L * 1000L) {
+            // 短时长:进程内 Handler 调度,可靠不依赖 OS scheduler
+            handler.postDelayed(endRunnable, durationMs)
+        } else {
+            // 长时长:AlarmManager(走原 scheduleAlarm 路径)
+            val state = repo.state.value
+            scheduleAlarm(state)
+        }
+    }
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -60,7 +94,7 @@ class CountdownService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> handleStart()
-            ACTION_STOP -> { cancelAlarm(); repo.stop(); stopSelf() }
+            ACTION_STOP -> { handler.removeCallbacks(endRunnable); cancelAlarm(); repo.stop(); stopSelf() }
             ACTION_PAUSE -> handlePause()
             ACTION_RESUME -> handleResume()
         }
@@ -71,7 +105,7 @@ class CountdownService : Service() {
         val state = repo.state.value
         if (state.status !is TimerStatus.Counting) return
         startForegroundCompat(state)
-        scheduleAlarm(state)
+        scheduleEnd(state.remainingMs)
         try {
             ensureBubble()
         } catch (e: Exception) {
@@ -85,6 +119,7 @@ class CountdownService : Service() {
         val state = repo.state.value
         if (state.status !is TimerStatus.Counting) return
         repo.pause()
+        handler.removeCallbacks(endRunnable)
         cancelAlarm()
         NotificationCenter.update(this, state.remainingMs, isPaused = true)
     }
@@ -93,7 +128,7 @@ class CountdownService : Service() {
         val state = repo.state.value
         if (state.status !is TimerStatus.Paused) return
         repo.resume()
-        scheduleAlarm(state)
+        scheduleEnd(state.remainingMs)
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
@@ -153,6 +188,7 @@ class CountdownService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(ticker)
+        handler.removeCallbacks(endRunnable)
         bubble?.hide()
         bubble = null
         NotificationCenter.cancel(this)
