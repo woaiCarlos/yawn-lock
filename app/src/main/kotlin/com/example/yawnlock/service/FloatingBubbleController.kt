@@ -70,8 +70,23 @@ class FloatingBubbleController(private val context: Context) {
     private var startParamsY = 0
     private var moved = false
 
+    companion object {
+        private const val TAG = "FloatingBubble"
+    }
+
     init {
         bubbleView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+        bubbleView.setOnTouchListener { _, ev -> handleTouch(ev) }
+    }
+
+    fun show() {
+        try {
+            wm.addView(bubbleView, params)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "addView failed; bubble will not show", e)
+            return  // addView failed, don't setContent on a not-attached view
+        }
+        // view is now attached; safe to setContent (Compose can find view tree owner)
         bubbleView.setContent {
             BubbleContent(
                 remainingMs = remainingMs,
@@ -81,16 +96,7 @@ class FloatingBubbleController(private val context: Context) {
                 onStop = ::stopCountdown,
             )
         }
-        bubbleView.setOnTouchListener { _, ev -> handleTouch(ev) }
-    }
-
-    fun show() {
-        try {
-            wm.addView(bubbleView, params)
-        } catch (e: Exception) {
-            // 含 BadTokenException / SecurityException / RuntimeException,静默忽略
-        }
-        // 启动时同步当前状态
+        // sync initial state
         val s = (context.applicationContext as YawnApplication).timerRepository.state.value
         remainingMs = s.remainingMs
         isPaused = s.status is TimerStatus.Paused
