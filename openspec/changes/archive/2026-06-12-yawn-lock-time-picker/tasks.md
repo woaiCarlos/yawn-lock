@@ -1,3 +1,7 @@
+---
+archived-with: 2026-06-12-yawn-lock-time-picker
+status: final
+---
 # Tasks: yawn-lock-time-picker
 
 > 时钟式滚轮选择器。3 个代码任务 + 1 个 spec 同步 + 1 个验证。
