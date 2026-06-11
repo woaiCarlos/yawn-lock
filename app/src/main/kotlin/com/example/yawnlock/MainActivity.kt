@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -20,28 +22,41 @@ import com.example.yawnlock.ui.permissions.PermissionsViewModel
 import com.example.yawnlock.ui.theme.YawnLockTheme
 import com.example.yawnlock.ui.timer.TimerScreen
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), DefaultLifecycleObserver {
+    private val permsVm: PermissionsViewModel by lazy { PermissionsViewModel(application) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super<ComponentActivity>.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        lifecycle.addObserver(this)
         setContent {
             YawnLockTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavHost()
+                    AppNavHost(permsVm = permsVm)
                 }
             }
         }
     }
+
+    override fun onResume(owner: LifecycleOwner) {
+        permsVm.refresh()
+    }
+
+    override fun onDestroy() {
+        lifecycle.removeObserver(this)
+        super<ComponentActivity>.onDestroy()
+    }
 }
 
 @Composable
-private fun AppNavHost() {
+private fun AppNavHost(permsVm: PermissionsViewModel) {
     val nav = rememberNavController()
-    val permsVm: PermissionsViewModel = viewModel()
     LaunchedEffect(Unit) { permsVm.refresh() }
     val perms by permsVm.state.collectAsState()
 
-    val startDest = if (perms.canStartCountdown) "timer" else "permissions"
+    val startDest = remember {
+        if (perms.canStartCountdown) "timer" else "permissions"
+    }
 
     NavHost(navController = nav, startDestination = startDest) {
         composable("timer") {
