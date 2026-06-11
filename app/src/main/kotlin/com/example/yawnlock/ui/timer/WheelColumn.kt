@@ -39,11 +39,17 @@ fun WheelColumn(
         initialFirstVisibleItemIndex = (selected - range.first).coerceAtLeast(0)
     )
     val isProgrammaticScroll = remember { mutableStateOf(false) }
+    // 用 rememberUpdatedState 包装 onSelectedChange,long-running effect 永远拿最新闭包
+    // 避免 secs wheel 因为 selected=0 没变被 Compose 跳过重组成时,effect 闭包陈旧导致算出错的 newSec
+    val currentOnSelectedChange = rememberUpdatedState(onSelectedChange)
 
     // 滚轮 → state: 用 snapshotFlow 同时观察 firstVisibleItemIndex 和 isScrollInProgress
     // 关键:之前用 LaunchedEffect(firstVisibleItemIndex) 只在 index 变化时 fire。
     // 手滑过程中 effect fire 但 return,手滑结束 index 不再变化 → effect 不再 fire → state 永远不更新 → 高亮丢失
     // 改用 snapshotFlow 后,isScrollInProgress 变 false 时也会触发 effect,确保手滑结束后 state 同步
+    // 关键2:用 rememberUpdatedState 包装 onSelectedChange,避免闭包陈旧
+    // 之前 secs wheel 因为 selected=0 没变被 Compose 跳过重组成,effect 里捕获的 onSelectedChange 闭包是
+    // 上一轮 recompose 时的版本(闭包里有 stale 的 minutes=5),导致改秒的时候算出错的 newSec
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.isScrollInProgress }
             .collect { (index, isScrolling) ->
@@ -51,7 +57,7 @@ fun WheelColumn(
                 if (isScrolling) return@collect
                 val newValue = range.first + index
                 if (newValue != selected && newValue in range) {
-                    onSelectedChange(newValue)
+                    currentOnSelectedChange.value(newValue)
                 }
             }
     }
