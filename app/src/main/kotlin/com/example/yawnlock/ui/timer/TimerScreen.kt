@@ -22,17 +22,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.yawnlock.domain.DurationFormatter
-import com.example.yawnlock.domain.TimerState
-import com.example.yawnlock.domain.TimerStatus
 import com.example.yawnlock.service.CountdownService
-import com.example.yawnlock.ui.components.ProgressRing
 import com.example.yawnlock.ui.theme.Night900
-import com.example.yawnlock.ui.theme.Purple50
 import com.example.yawnlock.ui.theme.Purple500
 import com.example.yawnlock.ui.theme.Purple700
 import com.example.yawnlock.ui.theme.Purple900
-import com.example.yawnlock.ui.theme.Rose
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,9 +66,7 @@ fun TimerScreen(
                 seconds = seconds,
                 onChange = { s -> seconds = s; vm.setSeconds(s) },
             )
-            if (state.isActive || state.status is TimerStatus.Finished) {
-                StatusCard(state = state, vm = vm)
-            }
+            // 倒计时进行中不在 Timer 屏幕显示任何 UI(仅悬浮窗显示)
         }
         StartCta(
             enabled = !state.isActive && state.durationMs > 0L,
@@ -176,6 +168,10 @@ private fun PresetChips(selected: Long, onSelect: (Long) -> Unit) {
 
 @Composable
 private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
+    val hours = (seconds / 3600L).toInt()
+    val minutes = ((seconds % 3600L) / 60L).toInt()
+    val secs = (seconds % 60L).toInt()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -186,95 +182,56 @@ private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(vertical = 16.dp, horizontal = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val big = if (seconds < 60) seconds.toString() else (seconds / 60).toString()
-            val unit = if (seconds < 60) "秒" else "分钟"
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(big, fontSize = 88.sp, fontWeight = FontWeight.Bold, color = Purple900)
-                Spacer(Modifier.width(6.dp))
-                Text(unit, fontSize = 22.sp, color = Color(0xFF6B6B6B), fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp))
-            }
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilledTonalIconButton(
-                    onClick = {
-                        val step = when {
-                            seconds < 60 -> 5L
-                            seconds < 300 -> 30L
-                            else -> 60L
-                        }
-                        onChange((seconds - step).coerceAtLeast(5L))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WheelColumn(
+                    range = 0..2,
+                    selected = hours,
+                    onSelectedChange = { h ->
+                        val newSec = h * 3600L + minutes * 60L + secs
+                        onChange(newSec.coerceIn(5L, 7200L))
                     },
-                    modifier = Modifier.size(48.dp),
-                ) { Text("−", fontSize = 22.sp, color = Purple500, fontWeight = FontWeight.Bold) }
-                FilledTonalIconButton(
-                    onClick = {
-                        val step = when {
-                            seconds < 60 -> 5L
-                            seconds < 300 -> 30L
-                            else -> 60L
-                        }
-                        onChange((seconds + step).coerceAtMost(7200L))
-                    },
-                    modifier = Modifier.size(48.dp),
-                ) { Text("+", fontSize = 22.sp, color = Purple500, fontWeight = FontWeight.Bold) }
-            }
-            Spacer(Modifier.height(22.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("5秒", fontSize = 12.sp, color = Color(0xFF6B6B6B))
-                Spacer(Modifier.width(14.dp))
-                Slider(
-                    value = seconds.toFloat(),
-                    onValueChange = { onChange(it.toLong()) },
-                    valueRange = 5f..7200f,
                     modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.width(14.dp))
-                Text("2时", fontSize = 12.sp, color = Color(0xFF6B6B6B))
+                Text(
+                    ":", fontSize = 28.sp, color = Purple900, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                WheelColumn(
+                    range = 0..59,
+                    selected = minutes,
+                    onSelectedChange = { m ->
+                        val newSec = hours * 3600L + m * 60L + secs
+                        onChange(newSec.coerceIn(5L, 7200L))
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    ":", fontSize = 28.sp, color = Purple900, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                WheelColumn(
+                    range = 0..59,
+                    selected = secs,
+                    onSelectedChange = { s ->
+                        val newSec = hours * 3600L + minutes * 60L + s
+                        onChange(newSec.coerceIn(5L, 7200L))
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun StatusCard(state: TimerState, vm: TimerViewModel) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Brush.linearGradient(listOf(Purple50, Rose)))
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("已经锁屏倒计时…", fontSize = 13.sp, color = Color(0xFF6B6B6B))
-            Spacer(Modifier.height(14.dp))
-            Box(contentAlignment = Alignment.Center) {
-                ProgressRing(progress = state.progress, size = 200.dp)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(DurationFormatter.toMmSs(state.remainingMs),
-                        fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Purple900)
-                    Text("剩余", fontSize = 12.sp, color = Color(0xFF6B6B6B))
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(
-                    onClick = { vm.pause() },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(50),
-                ) { Text(if (state.status is TimerStatus.Paused) "继续" else "暂停") }
-                OutlinedButton(
-                    onClick = { vm.stop() },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                ) { Text("停止") }
-            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "上下滚动调整 · 最多 2 小时",
+                fontSize = 11.sp,
+                color = Color(0xFF6B6B6B),
+            )
         }
     }
 }
