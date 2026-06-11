@@ -23,6 +23,7 @@ class CountdownService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val repo get() = (application as YawnApplication).timerRepository
+    private var bubble: FloatingBubbleController? = null
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -40,7 +41,7 @@ class CountdownService : Service() {
                 refreshed.remainingMs,
                 refreshed.status is TimerStatus.Paused,
             )
-            // TODO(floating-bubble): bubble.updateTime(refreshed.remainingMs) in Task 6
+            bubble?.updateTime(refreshed.remainingMs)
             if (refreshed.status is TimerStatus.Finished) {
                 stopSelf()
                 return
@@ -71,6 +72,7 @@ class CountdownService : Service() {
         if (state.status !is TimerStatus.Counting) return
         startForegroundCompat(state)
         scheduleAlarm(state)
+        ensureBubble()
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
@@ -147,7 +149,15 @@ class CountdownService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(ticker)
+        bubble?.hide()
+        bubble = null
         NotificationCenter.cancel(this)
         super.onDestroy()
+    }
+
+    private fun ensureBubble() {
+        if (bubble == null) {
+            bubble = FloatingBubbleController(this).also { it.show() }
+        }
     }
 }
