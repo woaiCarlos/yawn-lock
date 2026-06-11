@@ -89,12 +89,13 @@ fun WheelColumn(
         )
 
         // 2. 列表(中间层)
-        // contentPadding(vertical = 24.dp) 让 5 行可见下中间行(index 2)正好在 y=120 中心,
-        // 跟「:」分隔符垂直对齐
+        // contentPadding(vertical = 96.dp = 2 * ITEM_HEIGHT) 让 item 0 顶在 y=96,
+        // 视觉中心在 y=120 (可见区 240dp 的中心),跟「:」分隔符垂直对齐
+        // 同时 firstVisibleItemIndex 直接对应「中心选中的值」(无需偏移补偿)
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 24.dp),
+            contentPadding = PaddingValues(vertical = ITEM_HEIGHT * 2),
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
         ) {
             items(count) { i ->
