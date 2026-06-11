@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -57,6 +59,35 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+}
+
+// 给所有 variant 设置 APK basename：yawn-lock-{versionName}-{buildType}.apk
+// 与 RELEASE.md 的命名约定保持一致，省掉事后手动 cp 改名。
+// AGP 8.5 public VariantOutput 不暴露 outputFileName，改用 doLast 后处理
+// 把 assemble 阶段默认产出的 app-{buildType}.apk 改名为约定名字。
+tasks.register("renameApksToReleaseConvention") {
+    group = "build"
+    description = "Rename APK outputs to yawn-lock-{versionName}-{buildType}.apk"
+    val versionName = android.defaultConfig.versionName
+    doLast {
+        listOf("debug" to "app-debug.apk", "release" to "app-release.apk").forEach { (type, defaultName) ->
+            val dir = layout.buildDirectory.dir("outputs/apk/$type").get().asFile
+            val src = File(dir, defaultName)
+            if (src.exists()) {
+                val newName = "yawn-lock-$versionName-$type.apk"
+                val target = File(dir, newName)
+                src.renameTo(target)
+                logger.lifecycle("renamed $defaultName → $newName")
+            }
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name.startsWith("assemble") && it.name != "renameApksToReleaseConvention" }
+        .configureEach {
+            finalizedBy("renameApksToReleaseConvention")
+        }
 }
 
 dependencies {
