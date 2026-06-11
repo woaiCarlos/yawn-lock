@@ -29,3 +29,9 @@ captures/
 # Node (rare)
 node_modules/
 package-lock.json
+
+# Web-Prototype extracted files are the source of truth
+Web-Prototype.zip
+
+# Comet env helper (project-specific paths, not portable)
+.env.sh
