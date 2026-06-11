@@ -15,7 +15,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setSeconds(s: Long) {
         if (state.value.isActive) return
-        val clamped = s.coerceIn(5L, 7200L)
+        // 24h 上限(86400s):允许自定义 wheel 选 0..24 小时,不再被自动 clamp 回 2 小时
+        // Preset chip 都在 2h 内,不受影响
+        val clamped = s.coerceIn(5L, 86400L)
         repo.preview(clamped * 1000L)
     }
 
