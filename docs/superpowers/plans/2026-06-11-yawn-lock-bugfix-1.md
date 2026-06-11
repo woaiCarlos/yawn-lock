@@ -2,6 +2,7 @@
 change: yawn-lock-bugfix-1
 design-doc: openspec/changes/yawn-lock-bugfix-1/design.md
 base-ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
+archived-with: 2026-06-11-yawn-lock-bugfix-1
 ---
 
 # yawn-lock-bugfix-1 Implementation Plan
@@ -19,6 +20,7 @@ base-ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
 
 **测试策略:** 沿用 v1.1 polish 验证的 3 个新场景 + v1 8 步冒烟回归。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-1
 ---
 
 ## 详细任务
@@ -36,6 +38,7 @@ base-ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
 
 每个任务 1 个 commit,commit message 模板见 tasks.md。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-1
 ---
 
 ## File Map
@@ -48,6 +51,7 @@ base-ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
 
 无新文件,无资源变更,无 strings.xml 改动。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-1
 ---
 
 ## Self-Review
@@ -60,6 +64,7 @@ base-ref: 4163368cc8fa7912afb7471cbaa85bb607c7e167
   - `triggerLockNow()` 统一锁屏入口
 - [x] **Scope check**: 4 任务组 / 约 15 sub-tasks,每个 ≤ 30 行代码变更
 
+archived-with: 2026-06-11-yawn-lock-bugfix-1
 ---
 
 ## End of Plan

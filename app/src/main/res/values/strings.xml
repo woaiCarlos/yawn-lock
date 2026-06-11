@@ -10,4 +10,6 @@
     <string name="dnd_explanation">锁屏前自动静音 10 秒,可选</string>
     <string name="locked_fallback_title">已经锁屏</string>
     <string name="locked_fallback_subtitle">到点啦,按电源键唤醒</string>
+    <string name="admin_missing_title">设备管理员未授权</string>
+    <string name="admin_missing_text">锁屏功能未启用,请前往权限页重新授权设备管理员</string>
 </resources>

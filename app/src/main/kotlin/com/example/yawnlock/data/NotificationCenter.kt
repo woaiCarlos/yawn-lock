@@ -63,4 +63,17 @@ object NotificationCenter {
         (context.getSystemService(NotificationManager::class.java))
             .cancel(NOTIF_ID)
     }
+
+    fun showAdminMissingWarning(context: Context) {
+        val notif = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_lock)
+            .setContentTitle(context.getString(R.string.admin_missing_title))
+            .setContentText(context.getString(R.string.admin_missing_text))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setTimeoutAfter(10_000L)
+            .build()
+        (context.getSystemService(NotificationManager::class.java))
+            .notify(NOTIF_ID + 1, notif)
+    }
 }
