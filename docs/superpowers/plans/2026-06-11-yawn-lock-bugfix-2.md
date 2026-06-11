@@ -2,6 +2,7 @@
 change: yawn-lock-bugfix-2
 design-doc: openspec/changes/yawn-lock-bugfix-2/design.md
 base-ref: 01c78a0d6e8ce7f18c8e4b4ec11f6e7c8a9b0c1d
+archived-with: 2026-06-11-yawn-lock-bugfix-2
 ---
 
 # yawn-lock-bugfix-2 Implementation Plan
@@ -18,6 +19,7 @@ base-ref: 01c78a0d6e8ce7f18c8e4b4ec11f6e7c8a9b0c1d
 
 **测试策略:** 用户真机冒烟(8 步 v1 + 3 步 polish + 1 步新:锁屏 5 秒后真锁,不再黑屏)。`adb logcat -s CountdownService LockReceiver PermissionChecker FloatingBubble` 用于诊断。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-2
 ---
 
 ## 详细任务
@@ -34,6 +36,7 @@ base-ref: 01c78a0d6e8ce7f18c8e4b4ec11f6e7c8a9b0c1d
 
 每个 task 1-2 个 commit,commit message 模板见 tasks.md。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-2
 ---
 
 ## File Map
@@ -50,6 +53,7 @@ base-ref: 01c78a0d6e8ce7f18c8e4b4ec11f6e7c8a9b0c1d
 
 无新文件,无 spec 变更,无资源 layout 变更。
 
+archived-with: 2026-06-11-yawn-lock-bugfix-2
 ---
 
 ## Self-Review
@@ -59,6 +63,7 @@ base-ref: 01c78a0d6e8ce7f18c8e4b4ec11f6e7c8a9b0c1d
 - [x] **Type consistency**: TAG 一次性定义,NotificationCenter.NOTIF_ID + 1 用作 admin warning ID
 - [x] **Scope check**: 2 任务组,跨 6 文件,但每个 ≤ 50 行代码变更
 
+archived-with: 2026-06-11-yawn-lock-bugfix-2
 ---
 
 ## End of Plan
