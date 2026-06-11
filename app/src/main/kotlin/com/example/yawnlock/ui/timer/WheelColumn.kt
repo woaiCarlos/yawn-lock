@@ -40,14 +40,26 @@ fun WheelColumn(
     )
     val isProgrammaticScroll = remember { mutableStateOf(false) }
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        if (isProgrammaticScroll.value) return@LaunchedEffect
-        if (abs(listState.firstVisibleItemScrollOffset) < 8) {
-            val newValue = range.first + listState.firstVisibleItemIndex
-            if (newValue != selected && newValue in range) {
-                onSelectedChange(newValue)
+    // 滚轮 → state: 用 layoutInfo.visibleItemsInfo 找离可见中心最近的 item
+    // 这是 wheel picker 业界标准做法。firstVisibleItemIndex 是"第一个可见 item",
+    // 不是"中心 item" —— 快速滑动时二者会错位(尤其 contentPadding 很大的情况),
+    // 用「中心最近 item」永远等于视觉上看到的中间那个
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.toList() }
+            .collect { items ->
+                if (items.isEmpty()) return@collect
+                if (isProgrammaticScroll.value) return@collect
+                if (listState.isScrollInProgress) return@collect
+                val layoutInfo = listState.layoutInfo
+                val centerY = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+                val centerItem = items.minByOrNull { abs((it.offset + it.size / 2) - centerY) }
+                if (centerItem != null) {
+                    val newValue = range.first + centerItem.index
+                    if (newValue != selected && newValue in range) {
+                        onSelectedChange(newValue)
+                    }
+                }
             }
-        }
     }
 
     LaunchedEffect(selected) {
