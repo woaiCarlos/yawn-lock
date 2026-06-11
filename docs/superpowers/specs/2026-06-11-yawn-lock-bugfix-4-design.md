@@ -2,6 +2,8 @@
 comet_change: yawn-lock-bugfix-4
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-12-yawn-lock-bugfix-4
+status: final
 ---
 
 # Design: yawn-lock-bugfix-4 — Timer 屏零 UI + 气泡 XML 化 + app 不被系统杀
