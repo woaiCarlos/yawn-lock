@@ -40,26 +40,19 @@ fun WheelColumn(
     )
     val isProgrammaticScroll = remember { mutableStateOf(false) }
 
-    // 中心 item 检测 — 用 visibleItemsInfo 找离可见中心最近的 item
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.toList() }
-            .collect { items ->
-                if (items.isEmpty()) return@collect
-                if (isProgrammaticScroll.value) return@collect
-                if (listState.isScrollInProgress) return@collect
-                val layoutInfo = listState.layoutInfo
-                val centerY = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
-                val centerItem = items.minByOrNull { abs((it.offset + it.size / 2) - centerY) }
-                if (centerItem != null) {
-                    val newValue = range.first + centerItem.index
-                    if (newValue != selected && newValue in range) {
-                        onSelectedChange(newValue)
-                    }
-                }
-            }
+    // 滚轮 → state: 当 firstVisibleItemIndex 变化且不再程序性滚动时,更新 state
+    // 用 firstVisibleItemIndex 而不是"中心 item" —— 后者会因为 contentPadding 的偏移
+    // 产生反馈循环(state→wheel→state→wheel...),导致高亮永远对不上
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+        if (isProgrammaticScroll.value) return@LaunchedEffect
+        val newValue = range.first + listState.firstVisibleItemIndex
+        if (newValue != selected && newValue in range) {
+            onSelectedChange(newValue)
+        }
     }
 
-    // state → 滚轮:瞬时跳到目标
+    // state → 滚轮: 外部 selected 变化时,scrollToItem 把目标放在最顶端
+    // 这样 firstVisibleItemIndex = 选中值,state 跟高亮自动同步
     LaunchedEffect(selected) {
         val target = (selected - range.first).coerceAtLeast(0)
         if (target != listState.firstVisibleItemIndex) {
@@ -77,7 +70,7 @@ fun WheelColumn(
             .height(ITEM_HEIGHT * VISIBLE_ITEMS),
         contentAlignment = Alignment.Center,
     ) {
-        // 中央胶囊高亮
+        // 중앙胶囊高亮
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -98,9 +91,9 @@ fun WheelColumn(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            // 关键:padding = 2 * itemHeight 让中心 item(index 0)顶在 y = 88(可见区中心 y = 110)
-            // centerY = (startOffset + endOffset) / 2 = 0 + 5*44*density / 2 = 110*density
-            // item 0 top = 2 * itemHeight * density = 88 * density, center = 88 + 22 = 110
+            // 关键:padding = 2 * itemHeight 让 firstVisibleItemIndex(index 0)顶在 y = 88,
+            // 可见区中心 y = 110。index 0 顶在 y=88、视觉中心 y=110 = 中心
+            // 这样 firstVisibleItemIndex 直接对应"中心选中的值",无 race
             contentPadding = PaddingValues(vertical = ITEM_HEIGHT * 2),
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
         ) {
@@ -135,12 +128,12 @@ fun WheelColumn(
                 .fillMaxWidth()
                 .height(ITEM_HEIGHT * FADE_ROWS)
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.White,
-                        1f to Color.White.copy(alpha = 0f),
-                    )
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.White,
+                    1f to Color.White.copy(alpha = 0f),
                 )
+            )
         )
 
         // 底部渐变遮罩
@@ -149,12 +142,12 @@ fun WheelColumn(
                 .fillMaxWidth()
                 .height(ITEM_HEIGHT * FADE_ROWS)
                 .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.White.copy(alpha = 0f),
-                        1f to Color.White,
-                    )
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = 0f),
+                    1f to Color.White,
                 )
+            )
         )
     }
 }
