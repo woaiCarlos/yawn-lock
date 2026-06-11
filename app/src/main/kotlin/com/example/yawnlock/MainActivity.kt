@@ -64,6 +64,7 @@ private fun AppNavHost(permsVm: PermissionsViewModel) {
         }
         composable("permissions") {
             PermissionsScreen(
+                vm = permsVm,
                 onBack = {
                     if (perms.canStartCountdown) {
                         nav.navigate("timer") {

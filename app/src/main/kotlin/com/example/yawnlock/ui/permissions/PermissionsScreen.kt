@@ -33,7 +33,7 @@ import com.example.yawnlock.ui.theme.Purple900
 @Composable
 fun PermissionsScreen(
     onBack: () -> Unit,
-    vm: PermissionsViewModel = viewModel(),
+    vm: PermissionsViewModel,
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
