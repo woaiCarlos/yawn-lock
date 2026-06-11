@@ -2,6 +2,8 @@
 comet_change: yawn-lock
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-11-yawn-lock
+status: final
 ---
 
 # Design: 打哈欠 (yawn-lock) — Android 定时锁屏 v1
