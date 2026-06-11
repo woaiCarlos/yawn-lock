@@ -13,13 +13,10 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private val repo: TimerRepository = (app as YawnApplication).timerRepository
     val state: StateFlow<TimerState> = repo.state
 
-    fun selectedMinutes(): Double = state.value.durationMs / 60_000.0
-
-    fun setMinutes(m: Double) {
+    fun setSeconds(s: Long) {
         if (state.value.isActive) return
-        val clamped = m.coerceIn(0.5, 120.0)
-        val ms = (clamped * 60_000L).toLong()
-        repo.preview(ms)
+        val clamped = s.coerceIn(5L, 7200L)
+        repo.preview(clamped * 1000L)
     }
 
     fun checkPermissions(): PermissionState = PermissionChecker.check(getApplication())

@@ -42,12 +42,12 @@ fun TimerScreen(
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
-    var minutes by remember { mutableStateOf(5.0) }
+    var seconds by remember { mutableStateOf(300L) }
 
-    // 同步 minutes 跟 state.durationMs(state 变化时)
+    // 同步 seconds 跟 state.durationMs(state 变化时)
     LaunchedEffect(state.durationMs) {
         if (state.durationMs > 0 && !state.isActive) {
-            minutes = state.durationMs / 60_000.0
+            seconds = state.durationMs / 1000L
         }
     }
 
@@ -63,13 +63,13 @@ fun TimerScreen(
             HeroCard()
             SectionHeader("快速预设", "点击切换")
             PresetChips(
-                selected = minutes,
-                onSelect = { m -> minutes = m; vm.setMinutes(m) },
+                selected = seconds,
+                onSelect = { s -> seconds = s; vm.setSeconds(s) },
             )
             SectionHeader("自定义", "± 键微调")
             CustomDial(
-                minutes = minutes,
-                onChange = { m -> minutes = m; vm.setMinutes(m) },
+                seconds = seconds,
+                onChange = { s -> seconds = s; vm.setSeconds(s) },
             )
             if (state.isActive || state.status is TimerStatus.Finished) {
                 StatusCard(state = state, vm = vm)
@@ -128,26 +128,31 @@ private fun SectionHeader(title: String, hint: String) {
 }
 
 @Composable
-private fun PresetChips(selected: Double, onSelect: (Double) -> Unit) {
+private fun PresetChips(selected: Long, onSelect: (Long) -> Unit) {
+    val presets = listOf(
+        600L to ("10" to "分钟"),
+        1800L to ("30" to "分钟"),
+        3600L to ("1" to "小时"),
+        7200L to ("2" to "小时"),
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        listOf(0.5, 1.0, 5.0, 10.0).forEach { m ->
-            val isSelected = abs(selected - m) < 0.01
+        presets.forEach { (s, labels) ->
+            val (label, unit) = labels
+            val isSelected = selected == s
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (isSelected) Purple500 else Color.White)
-                    .clickable { onSelect(m) }
+                    .clickable { onSelect(s) }
                     .padding(vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val label = when (m) { 0.5 -> "30"; 1.0 -> "1"; 5.0 -> "5"; 10.0 -> "10"; else -> m.toInt().toString() }
-                val unit = when (m) { 0.5 -> "秒"; else -> "分钟" }
                 Text(label,
                     color = if (isSelected) Color.White else Purple900,
                     fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -160,7 +165,7 @@ private fun PresetChips(selected: Double, onSelect: (Double) -> Unit) {
 }
 
 @Composable
-private fun CustomDial(minutes: Double, onChange: (Double) -> Unit) {
+private fun CustomDial(seconds: Long, onChange: (Long) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -174,8 +179,8 @@ private fun CustomDial(minutes: Double, onChange: (Double) -> Unit) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val big = if (minutes < 1.0) (minutes * 60).toInt().toString() else minutes.toInt().toString()
-            val unit = if (minutes < 1.0) "秒" else "分钟"
+            val big = if (seconds < 60) seconds.toString() else (seconds / 60).toString()
+            val unit = if (seconds < 60) "秒" else "分钟"
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(big, fontSize = 88.sp, fontWeight = FontWeight.Bold, color = Purple900)
                 Spacer(Modifier.width(6.dp))
@@ -185,26 +190,40 @@ private fun CustomDial(minutes: Double, onChange: (Double) -> Unit) {
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FilledTonalIconButton(
-                    onClick = { onChange((minutes - if (minutes > 10) 5 else 1).coerceAtLeast(0.5)) },
+                    onClick = {
+                        val step = when {
+                            seconds < 60 -> 5L
+                            seconds < 300 -> 30L
+                            else -> 60L
+                        }
+                        onChange((seconds - step).coerceAtLeast(5L))
+                    },
                     modifier = Modifier.size(48.dp),
                 ) { Text("−", fontSize = 22.sp, color = Purple500, fontWeight = FontWeight.Bold) }
                 FilledTonalIconButton(
-                    onClick = { onChange((minutes + if (minutes >= 10) 5 else 1).coerceAtMost(120.0)) },
+                    onClick = {
+                        val step = when {
+                            seconds < 60 -> 5L
+                            seconds < 300 -> 30L
+                            else -> 60L
+                        }
+                        onChange((seconds + step).coerceAtMost(7200L))
+                    },
                     modifier = Modifier.size(48.dp),
                 ) { Text("+", fontSize = 22.sp, color = Purple500, fontWeight = FontWeight.Bold) }
             }
             Spacer(Modifier.height(22.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("1分", fontSize = 12.sp, color = Color(0xFF6B6B6B))
+                Text("5秒", fontSize = 12.sp, color = Color(0xFF6B6B6B))
                 Spacer(Modifier.width(14.dp))
                 Slider(
-                    value = minutes.toFloat(),
-                    onValueChange = { onChange(it.toDouble()) },
-                    valueRange = 1f..120f,
+                    value = seconds.toFloat(),
+                    onValueChange = { onChange(it.toLong()) },
+                    valueRange = 5f..7200f,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(14.dp))
-                Text("120分", fontSize = 12.sp, color = Color(0xFF6B6B6B))
+                Text("2时", fontSize = 12.sp, color = Color(0xFF6B6B6B))
             }
         }
     }
@@ -271,7 +290,7 @@ private fun BoxScope.StartCta(enabled: Boolean, onStart: () -> Unit, modifier: M
         ) {
             Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("开始锁屏", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("开始计时", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
