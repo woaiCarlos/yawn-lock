@@ -1,0 +1,17 @@
+workflow: full
+phase: build
+build_mode: null
+build_pause: null
+isolation: null
+verify_mode: null
+base_ref: 5e46d879874e583cb899fe2f418120dad2a7b1ac
+design_doc: docs/superpowers/specs/2026-06-11-yawn-lock-bugfix-4-design.md
+plan: null
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-11
+verified_at: null
+archived: false
+handoff_context: openspec/changes/yawn-lock-bugfix-4/.comet/handoff/design-context.json
+handoff_hash: 953e79a82239013d966607052147ec4c32b5eab4fb2ae26c03cb08b7f8fef48e
