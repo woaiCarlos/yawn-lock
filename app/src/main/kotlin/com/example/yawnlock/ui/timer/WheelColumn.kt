@@ -110,7 +110,10 @@ fun WheelColumn(
         ) {
             items(count) { i ->
                 val value = range.first + i
-                val isSelected = value == selected
+                // 高亮直接用 firstVisibleItemIndex 决定,不走 state round-trip
+                // 否则 state→parent recompose→child 链每帧一跳,快速滑动后数字到位
+                // 但高亮要等几百毫秒才追上。直接读 wheel 索引=零延迟高亮
+                val isSelected = i == listState.firstVisibleItemIndex
                 val fontSize = if (isSelected) 26.sp else 18.sp
                 val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 val color = if (isSelected) Purple900 else Purple900.copy(alpha = 0.35f)
