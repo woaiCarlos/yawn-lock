@@ -48,15 +48,29 @@ class TimerRepositoryStateTest {
     }
 
     @Test
-    fun stop_preserves_duration_and_returns_to_Idle() {
+    fun stop_fully_clears_state_no_preservation() {
+        // 1.0.3 起:stop 完全清空,不保留 durationMs。
+        // 「点了停止 = 我不干了」,滚轮/时长都该归 0,要求用户重新选时间。
         val repo = TimerRepository()
         repo.preview(10_000L)
         repo.start(10_000L)
         repo.stop()
         val s = repo.state.value
         assertEquals(TimerStatus.Idle, s.status)
-        assertEquals(10_000L, s.durationMs)  // preserved
-        assertEquals(10_000L, s.remainingMs)  // reset to duration
+        assertEquals(0L, s.durationMs)  // 不再保留
+        assertEquals(0L, s.remainingMs) // 完全清空
+    }
+
+    @Test
+    fun stop_while_idle_still_resets_to_zero() {
+        // 用户在 Idle 状态点 stop(罕见路径,但要稳),不应该有副作用
+        val repo = TimerRepository()
+        repo.preview(10_000L)
+        repo.stop()
+        val s = repo.state.value
+        assertEquals(TimerStatus.Idle, s.status)
+        assertEquals(0L, s.durationMs)
+        assertEquals(0L, s.remainingMs)
     }
 
     @Test
@@ -73,7 +87,8 @@ class TimerRepositoryStateTest {
         // Step 3: 中途停止
         repo.stop()
         assertEquals(TimerStatus.Idle, repo.state.value.status)
-        assertEquals(10_000L, repo.state.value.durationMs)  // 保留
+        assertEquals(0L, repo.state.value.durationMs)  // 1.0.3:stop 全清,不再保留
+        assertEquals(0L, repo.state.value.remainingMs)
 
         // Step 4: 改 20s
         repo.preview(20_000L)
@@ -90,8 +105,9 @@ class TimerRepositoryStateTest {
     }
 
     @Test
-    fun preview_while_Counting_resets_to_new_full_duration() {
-        // Bug 复现 1:用户设 30s → 启动 → 滚轮改 25s → 期望从 25s 开始
+    fun preview_while_Counting_resets_to_Idle_with_new_duration() {
+        // 1.0.3 起:mid-countdown preview = 「我改主意了」,完全清掉倒计时,
+        // status=Idle,durationMs=newDuration,要求用户重新点 Start
         val repo = TimerRepository()
         repo.preview(30_000L)
         repo.start(30_000L)
@@ -99,26 +115,14 @@ class TimerRepositoryStateTest {
 
         repo.preview(25_000L)
         val s = repo.state.value
-        assertEquals(TimerStatus.Counting, s.status)
-        assertEquals(25_000L, s.durationMs)  // 新的总时长
-        assertEquals(25_000L, s.remainingMs)  // 重置 = 新总时长
+        assertEquals(TimerStatus.Idle, s.status)  // 必须是 Idle,不再 Counting
+        assertEquals(25_000L, s.durationMs)
+        assertEquals(25_000L, s.remainingMs)
     }
 
     @Test
-    fun preview_while_Counting_handles_smaller_and_larger_values() {
-        // Bug 复现 2:用户设 45s → 启动 → 滚轮改 15s → 期望从 15s 开始
-        val repo = TimerRepository()
-        repo.preview(45_000L)
-        repo.start(45_000L)
-        repo.preview(15_000L)
-        val s = repo.state.value
-        assertEquals(TimerStatus.Counting, s.status)
-        assertEquals(15_000L, s.durationMs)
-        assertEquals(15_000L, s.remainingMs)
-    }
-
-    @Test
-    fun preview_while_Paused_resets_to_new_full_duration() {
+    fun preview_while_Paused_resets_to_Idle_with_new_duration() {
+        // 1.0.3 起:Paused 状态下 preview = 清掉暂停,回 Idle+新时长
         val repo = TimerRepository()
         repo.preview(30_000L)
         repo.start(30_000L)
@@ -127,26 +131,28 @@ class TimerRepositoryStateTest {
 
         repo.preview(25_000L)
         val s = repo.state.value
-        assertEquals(TimerStatus.Paused, s.status)  // 保持暂停
+        assertEquals(TimerStatus.Idle, s.status)  // 必须清掉 Paused
         assertEquals(25_000L, s.durationMs)
         assertEquals(25_000L, s.remainingMs)
     }
 
     @Test
-    fun preview_from_Counting_keeps_status_but_resyncs_deadline() {
-        // 保证 fix 之后 deadlineElapsed 跟新 durationMs 同步,否则下次 tick() 会用旧 deadline
+    fun preview_from_Counting_does_not_resync_deadline() {
+        // 1.0.3 起:preview 不再保持 Counting,deadlineElapsed 不需要同步(反正下次 start() 会重设)
+        // 这个测试现在不该出现 deadlineElapsed 跟 newDuration 一致的情况,
+        // 而应该保持 repo 构造时的初值 0L(start 还没跑过 → 没设过 deadline)。
         val repo = TimerRepository()
         repo.preview(30_000L)
         repo.start(30_000L)
-
+        // deadlineElapsed 在 start(30_000)时已被设为 now+30000
         repo.preview(25_000L)
-        // 反射读 deadlineElapsed
+        // 1.0.3 行为:不 resync,所以 deadlineElapsed 还是 start() 设的 now+30000
         val deadlineField = repo.javaClass.getDeclaredField("deadlineElapsed").apply { isAccessible = true }
-        val now = android.os.SystemClock.elapsedRealtime()
         val newDeadline = deadlineField.getLong(repo)
-        // 新 deadline 应该是 now 附近(now+25000,允许 Robolectric 时间精度误差)
-        val delta = (newDeadline - now) - 25_000L
-        assert(delta in -100L..100L) { "deadlineElapsed 没跟新 durationMs 同步,delta=$delta" }
+        // 验证:deadline 应该是 start 时设的 now+30000 附近,而不是 now+25000
+        val now = android.os.SystemClock.elapsedRealtime()
+        val deltaFromStart = (newDeadline - now) - 30_000L
+        assert(deltaFromStart in -100L..100L) { "deadlineElapsed 不应被 preview 重置,deltaFromStart=$deltaFromStart" }
     }
 
     @Test

@@ -39,13 +39,10 @@ class TimerRepository {
     }
 
     fun stop() {
-        // 保留 durationMs:用户停止后想再开一次,滑块位置 + 「开始计时」按钮 enabled,不用先拖滑块
-        val current = _state.value
-        _state.value = TimerState(
-            status = TimerStatus.Idle,
-            durationMs = current.durationMs,
-            remainingMs = current.durationMs,
-        )
+        // 「点了停止 = 我不干了」。完全清空回到 Idle+0+0,不再保留 durationMs。
+        // 用户实测反馈 1.0.2 的「stop 后 wheel 仍显示旧值」反直觉:既然按的是停止
+        // 不是暂停,就应该归零,要重新开始就让用户重新选时间。
+        _state.value = TimerState()
     }
 
     fun tick() {
@@ -59,20 +56,19 @@ class TimerRepository {
     fun preview(durationMs: Long) {
         val current = _state.value
         val now = SystemClock.elapsedRealtime()
-        // 从 Finished 状态切到 Idle:用户滑动滑块调整时间意味着「我要开始新的一次倒计时」
-        // 如果不重置,vm.start() 会因为 status=Finished(不是 Idle)而 return
-        val newStatus = if (current.status is TimerStatus.Finished) TimerStatus.Idle else current.status
-        _state.value = current.copy(
-            status = newStatus,
+        // 1.0.3 起:任何状态下的 preview 都直接重置为 Idle+newDuration+newDuration。
+        // 不再「Counting 状态保留、Paused 状态保留、Finished 才转 Idle」的分层逻辑。
+        // 用户实测反馈:暂停中调时间、或正在倒计时调时间,都应该「清掉旧状态、准备好
+        // 用新时长开始」,而不是「timer 自动按新值继续」或「暂停中改完时间还得手动
+        // resume」。任何「改主意」都应该把之前的 counting/paused 状态彻底清掉,要求
+        // 用户重新点 Start 才计时。
+        _state.value = TimerState(
+            status = TimerStatus.Idle,
             durationMs = durationMs,
             remainingMs = durationMs,
         )
-        // 关键:如果之前是 Counting / Paused,还要把 deadlineElapsed 同步成新的
-        // (now + durationMs),否则下次 tick() 会用旧的 deadline 算出错误的 remaining
-        // —— 这就是「设 30s 开始 → 滚到 25s → 仍按 30s 倒计时」bug 的根因。
-        if (current.isActive) {
-            deadlineElapsed = now + durationMs
-        }
+        // 不再同步 deadlineElapsed:preview 之后 status=Idle,tick() 不会跑;下次 start()
+        // 会重新设 deadlineElapsed。保留旧值没意义。
     }
 
     /** Called by LockReceiver when alarm fires. */
