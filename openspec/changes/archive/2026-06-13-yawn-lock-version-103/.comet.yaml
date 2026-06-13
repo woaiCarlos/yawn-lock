@@ -1,5 +1,5 @@
 workflow: tweak
-phase: verify
+phase: archive
 context_compression: off
 build_mode: direct
 build_pause: null
@@ -11,10 +11,10 @@ auto_transition: true
 base_ref: acecade2abcd2411a8454aaa3b8a2a2391546772
 design_doc: null
 plan: null
-verify_result: pending
-verification_report: null
-branch_status: pending
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-13-yawn-lock-version-103-verify.md
+branch_status: handled
 created_at: 2026-06-13
-verified_at: null
-archived: false
+verified_at: 2026-06-13
+archived: true
 build_command: ./scripts/build.sh :app:assembleDebug
