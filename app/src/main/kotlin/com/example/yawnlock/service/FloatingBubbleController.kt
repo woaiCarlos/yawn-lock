@@ -80,11 +80,12 @@ class FloatingBubbleController(private val context: Context) {
         params.width = if (collapsed) dp(COLLAPSED_WIDTH_DP) else dp(EXPANDED_WIDTH_DP)
         try {
             wm.addView(bubbleView, params)
-            attached = true
         } catch (e: Exception) {
             Log.e(TAG, "addView failed; bubble will not show", e)
             return
         }
+        // addView 成功才标记 attached
+        attached = true
         val s = (context.applicationContext as YawnApplication).timerRepository.state.value
         timeView.text = DurationFormatter.toMmSs(s.remainingMs)
         updateStatus(s.status is TimerStatus.Paused)
@@ -92,10 +93,17 @@ class FloatingBubbleController(private val context: Context) {
 
     fun hide() {
         if (!attached) return
+        // 关键:无论 wm.removeView 抛不抛,attached 必须无条件重置。
+        // 否则一旦 removeView 失败(overlay 权限抖动 / 视图已 detach),
+        // 后续 show() 全部 if (attached) return,气泡永远不再出现——
+        // 这就是「设 10s → 中途停止 → 重进 app → 设 20s → 开始,不计时」bug 的根因。
         try {
             wm.removeView(bubbleView)
+        } catch (e: Exception) {
+            Log.w(TAG, "wm.removeView threw, but resetting attached anyway", e)
+        } finally {
             attached = false
-        } catch (_: Exception) {}
+        }
     }
 
     fun updateTime(ms: Long) {
