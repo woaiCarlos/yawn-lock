@@ -1,6 +1,10 @@
 # Spec: floating-countdown-widget (打哈欠悬浮倒计时气泡)
 
-## ADDED Requirements
+## Purpose
+
+(主 spec。原 `## ADDED Requirements` 是 delta-only 头, 修成普通 `## Purpose` 段落,后续 `### Requirement:` 仍是真正的 requirement)
+
+## Requirements
 
 ### Requirement: Display Floating Bubble During Countdown
 

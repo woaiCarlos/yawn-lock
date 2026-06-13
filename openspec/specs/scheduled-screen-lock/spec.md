@@ -1,13 +1,15 @@
-# Spec: scheduled-screen-lock (delta for yawn-lock-polish)
+# Spec: scheduled-screen-lock
 
-> 本 delta 修改 `openspec/specs/scheduled-screen-lock/spec.md`,记录 yawn-lock v1 → v1.1 之间的行为变更。
-> 其他 capability (`floating-countdown-widget`) 行为不变,不在此 delta 范围。
+## Purpose
 
-## MODIFIED Requirements
+(主 spec。`## MODIFIED Requirements` 是 delta-only 头, 改名为 `## Requirements`。文件顶部的
+「delta for yawn-lock-polish」注释和「变更」字样都是从旧 delta 残留下来,清掉。)
+
+## Requirements
 
 ### Requirement: Select Lock Duration
 
-**变更**: 滑块从"分钟级"改为"秒级"精度,范围 5 秒 - 2 小时;预设从短时段(30s/1m/5m/10m)改为中长时段(10m/30m/1h/2h)。
+滑块从"分钟级"改为"秒级"精度,范围 5 秒 - 2 小时;预设从短时段(30s/1m/5m/10m)改为中长时段(10m/30m/1h/2h)。
 
 The system SHALL allow the user to select a lock duration on the main timer screen.
 
