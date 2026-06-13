@@ -1,0 +1,20 @@
+workflow: hotfix
+phase: verify
+context_compression: off
+build_mode: direct
+build_pause: null
+subagent_dispatch: null
+tdd_mode: direct
+isolation: branch
+verify_mode: light
+auto_transition: true
+base_ref: 998fd455b2ce8e9f422aa8c7791ece63f5548b37
+design_doc: null
+plan: null
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-13
+verified_at: null
+archived: false
+build_command: ./scripts/build.sh :app:assembleDebug

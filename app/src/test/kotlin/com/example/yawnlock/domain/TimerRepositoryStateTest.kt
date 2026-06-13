@@ -90,15 +90,63 @@ class TimerRepositoryStateTest {
     }
 
     @Test
-    fun preview_while_Active_is_noop() {
+    fun preview_while_Counting_resets_to_new_full_duration() {
+        // Bug 复现 1:用户设 30s → 启动 → 滚轮改 25s → 期望从 25s 开始
         val repo = TimerRepository()
-        repo.preview(10_000L)
-        repo.start(10_000L)
-        // 倒计时进行中:preview 不应改变 state
-        repo.preview(99_000L)
+        repo.preview(30_000L)
+        repo.start(30_000L)
+        assertEquals(TimerStatus.Counting, repo.state.value.status)
+
+        repo.preview(25_000L)
         val s = repo.state.value
         assertEquals(TimerStatus.Counting, s.status)
-        assertEquals(10_000L, s.durationMs)
+        assertEquals(25_000L, s.durationMs)  // 新的总时长
+        assertEquals(25_000L, s.remainingMs)  // 重置 = 新总时长
+    }
+
+    @Test
+    fun preview_while_Counting_handles_smaller_and_larger_values() {
+        // Bug 复现 2:用户设 45s → 启动 → 滚轮改 15s → 期望从 15s 开始
+        val repo = TimerRepository()
+        repo.preview(45_000L)
+        repo.start(45_000L)
+        repo.preview(15_000L)
+        val s = repo.state.value
+        assertEquals(TimerStatus.Counting, s.status)
+        assertEquals(15_000L, s.durationMs)
+        assertEquals(15_000L, s.remainingMs)
+    }
+
+    @Test
+    fun preview_while_Paused_resets_to_new_full_duration() {
+        val repo = TimerRepository()
+        repo.preview(30_000L)
+        repo.start(30_000L)
+        repo.pause()
+        assertEquals(TimerStatus.Paused, repo.state.value.status)
+
+        repo.preview(25_000L)
+        val s = repo.state.value
+        assertEquals(TimerStatus.Paused, s.status)  // 保持暂停
+        assertEquals(25_000L, s.durationMs)
+        assertEquals(25_000L, s.remainingMs)
+    }
+
+    @Test
+    fun preview_from_Counting_keeps_status_but_resyncs_deadline() {
+        // 保证 fix 之后 deadlineElapsed 跟新 durationMs 同步,否则下次 tick() 会用旧 deadline
+        val repo = TimerRepository()
+        repo.preview(30_000L)
+        repo.start(30_000L)
+
+        repo.preview(25_000L)
+        // 反射读 deadlineElapsed
+        val deadlineField = repo.javaClass.getDeclaredField("deadlineElapsed").apply { isAccessible = true }
+        val now = android.os.SystemClock.elapsedRealtime()
+        val newDeadline = deadlineField.getLong(repo)
+        // 新 deadline 应该是 now 附近(now+25000,允许 Robolectric 时间精度误差)
+        val delta = (newDeadline - now) - 25_000L
+        assert(delta in -100L..100L) { "deadlineElapsed 没跟新 durationMs 同步,delta=$delta" }
     }
 
     @Test

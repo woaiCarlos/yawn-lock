@@ -58,7 +58,7 @@ class TimerRepository {
 
     fun preview(durationMs: Long) {
         val current = _state.value
-        if (current.isActive) return
+        val now = SystemClock.elapsedRealtime()
         // 从 Finished 状态切到 Idle:用户滑动滑块调整时间意味着「我要开始新的一次倒计时」
         // 如果不重置,vm.start() 会因为 status=Finished(不是 Idle)而 return
         val newStatus = if (current.status is TimerStatus.Finished) TimerStatus.Idle else current.status
@@ -67,6 +67,12 @@ class TimerRepository {
             durationMs = durationMs,
             remainingMs = durationMs,
         )
+        // 关键:如果之前是 Counting / Paused,还要把 deadlineElapsed 同步成新的
+        // (now + durationMs),否则下次 tick() 会用旧的 deadline 算出错误的 remaining
+        // —— 这就是「设 30s 开始 → 滚到 25s → 仍按 30s 倒计时」bug 的根因。
+        if (current.isActive) {
+            deadlineElapsed = now + durationMs
+        }
     }
 
     /** Called by LockReceiver when alarm fires. */
