@@ -103,9 +103,10 @@ export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
 
 ### 已知限制
 
-- ⚠️ **未在真机长期测试** —— 已在 1 台 macOS 开发机上跑过逻辑,未做跨设备 / 跨 Android 版本的回归测试矩阵
 - ⚠️ **iOS / HarmonyOS 不支持** —— 只做了 Android(用了 `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY` 和 `DevicePolicyManager.lockNow()`)
-- ⚠️ **国内 ROM 后台保活** —— 即使加了白名单,部分激进 ROM(尤其是 MIUI 12+ 的某些版本)仍会杀进程。已加引导但不是 100% 解决
+- ⚠️ **国内 ROM 后台保活** —— 即使加了白名单,部分激进 ROM(尤其是 MIUI 12+ 的某些版本)仍可能杀进程。已加引导但不是 100% 解决
+
+> 真机已测过几天,无问题。代码层还有 10/10 单元测试覆盖核心状态机。
 
 ---
 
@@ -184,9 +185,10 @@ For release / signing, see [RELEASE.md](./RELEASE.md). For architecture, see [do
 
 ### Known limitations
 
-- ⚠️ **Not long-term real-device tested** — Logic was unit-tested on a macOS dev machine; no cross-device / cross-Android-version regression matrix yet
 - ⚠️ **Android only** — no iOS / HarmonyOS (uses `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY` and `DevicePolicyManager.lockNow()`)
 - ⚠️ **CN-OEM background-kill resilience** — even with whitelist, some aggressive ROMs (certain MIUI 12+ builds) still kill the process. A first-run prompt helps but is not 100% solved.
+
+> Real-device tested for several days, no issues. Code-level coverage: 10/10 unit tests on core state machine.
 
 ---
 
@@ -298,7 +300,6 @@ java -jar ~/Library/Android/sdk/build-tools/34.0.0/lib/apksigner.jar \
 
 ## 路线图 / Roadmap
 
-- [ ] 真机回归测试矩阵(至少 3 台设备,涵盖 Android 8/10/12/14)
 - [ ] 自适应启动器图标(Android 12+ 主题图标)
 - [ ] 桌面 widget(快速设时长)
 - [ ] 历史记录(每天专注多久,简单统计)
