@@ -1,0 +1,92 @@
+name: Bug Report / Bug 报告
+description: 报告一个 bug / Report a bug
+title: "[bug] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交 bug! 请尽量填完整下面的信息,我会更快定位和修复。
+        Thanks for filing! Please fill in as much as you can — it speeds up the fix.
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / Repro steps
+      description: |
+        一步步描述怎么触发这个 bug。如果可能,列出具体点按、输入。
+        Step by step how to trigger. Exact taps, inputs.
+      placeholder: |
+        1. 设 30s
+        2. 点开始
+        3. 等 10s
+        4. 看到 bubble 还显示 30s
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 / Expected behavior
+      description: 你期望发生什么
+      placeholder: |
+        期望 bubble 从 30s 倒计时到 0,然后手机锁屏
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 / Actual behavior
+      description: 实际发生了什么
+      placeholder: |
+        bubble 卡在 30s 不动,或者提前结束
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App 版本 / App version
+      description: 设置 → 关于里看,或 `aapt dump badging apk` 里的 versionName
+      placeholder: "1.0.3"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备 + Android 版本 / Device + Android
+      description: 例如:Pixel 6, Android 14;或 Xiaomi 13, MIUI 14
+      placeholder: "Pixel 6, Android 14"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 严重程度 / Severity
+      description: 你觉得这个 bug 多严重
+      options:
+        - "Blocker — 完全不能用 / can't use at all"
+        - "Critical — 主要功能坏 / main feature broken"
+        - "Major — 部分功能坏 / some feature broken"
+        - "Minor — 小问题,不影响核心 / minor, doesn't block"
+        - "Trivial — 文字/UI 小瑕疵 / typo / UI nit"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: logcat(选填) / logcat (optional)
+      description: |
+        `adb logcat -d -v threadtime | grep -i 'yawn\|countdown\|floatingbubble'`
+        把相关行贴上来
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图(选填) / Screenshots (optional)
+      description: 截图或者屏幕录屏,直接拖进来

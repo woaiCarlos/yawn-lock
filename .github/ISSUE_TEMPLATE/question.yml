@@ -1,0 +1,25 @@
+name: Question / 提问
+description: 问个问题(不是 bug,不是功能建议) / Ask a question
+title: "[question] "
+labels: ["question"]
+assignees: []
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题 / Question
+      description: 问就完了
+      placeholder: |
+        在 macOS 上跑 ./scripts/build.sh 报 JAVA_HOME 没设,我装了 openjdk@17 但还是找不到,怎么搞?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已经试过 / What you've tried
+      description: 简短列一下你尝试过的事
+      placeholder: |
+        - `brew install openjdk@17`
+        - `export JAVA_HOME=...`
+        - `./gradlew --version` 看 java 路径

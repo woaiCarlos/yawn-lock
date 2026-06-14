@@ -1,0 +1,63 @@
+name: Feature Request / 功能建议
+description: 建议一个功能 / Suggest a feature
+title: "[feat] "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        想要新功能? 描述清楚你的使用场景和期望的行为。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题? / What problem are you trying to solve?
+      description: 描述当前痛点
+      placeholder: |
+        比如:「我经常在睡前用 app,但是早上起来发现昨晚忘了解锁,手机一直锁着,
+        早上又得手动解锁。我希望它能在到点时,弹个选项让我选择是否锁屏。」
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 你想要的解决方案 / Your proposed solution
+      description: 描述你期望的行为
+      placeholder: |
+        倒计时结束时,弹一个对话框,问「是否要锁屏?」,30 秒内不点就自动锁
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案 / Alternatives considered
+      description: |
+        你有没有想过别的做法?为什么这个更好?
+        Did you consider alternatives? Why is this better?
+      placeholder: |
+        - 直接锁屏,不解锁也行 → 但有些场景需要「再 5 分钟」
+        - 不锁屏,只响铃 → 但 app 核心价值就是强制锁
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 额外上下文 / Additional context
+      description: |
+        截图、mockup、参考 app 的类似功能、相关 issue 等等
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级(你的判断) / Priority (your guess)
+      options:
+        - "P0 — 关键 / Critical"
+        - "P1 — 重要 / Important"
+        - "P2 — 有用 / Nice to have"
+        - "P3 — 可有可无 / Whatever"
+    validations:
+      required: false
