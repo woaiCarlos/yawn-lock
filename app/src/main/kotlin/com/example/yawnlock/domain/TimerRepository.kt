@@ -39,10 +39,14 @@ class TimerRepository {
     }
 
     fun stop() {
-        // 「点了停止 = 我不干了」。完全清空回到 Idle+0+0,不再保留 durationMs。
-        // 用户实测反馈 1.0.2 的「stop 后 wheel 仍显示旧值」反直觉:既然按的是停止
-        // 不是暂停,就应该归零,要重新开始就让用户重新选时间。
-        _state.value = TimerState()
+        // 回到 Idle 但保留 durationMs,与 onAlarmFired() 落地的 Finished 对齐——
+        // Stop 后用户点 Start 应该能直接用上次设的时长重启动,不需要重新选时间。
+        val cur = _state.value
+        _state.value = TimerState(
+            status = TimerStatus.Idle,
+            durationMs = cur.durationMs,
+            remainingMs = cur.durationMs,
+        )
     }
 
     fun tick() {
