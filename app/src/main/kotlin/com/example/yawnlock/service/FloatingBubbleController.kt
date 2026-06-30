@@ -254,14 +254,13 @@ class FloatingBubbleController(private val context: Context) {
         }
         applyVisibilityForState()
         params.width = widthForState(next)
-        if (next == VisualState.LINE || next == VisualState.CIRCLE) {
-            // 贴边 x 按 lastSide 设
-            val displayMetrics = context.resources.displayMetrics
-            val screenWidth = displayMetrics.widthPixels
-            params.x = when (lastSide) {
-                SnapSide.LEFT -> dp(EDGE_MARGIN_DP)
-                SnapSide.RIGHT -> screenWidth - params.width - dp(EDGE_MARGIN_DP)
-            }
+        // 三态统一按 lastSide 重算 params.x:切到 EXPANDED 时 width 从 36 变 200,
+        // 不重算会让贴右屏的圆展开后半截被屏幕裁掉。这里无条件重算保证全宽可见。
+        val displayMetrics = context.resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        params.x = when (lastSide) {
+            SnapSide.LEFT -> dp(EDGE_MARGIN_DP)
+            SnapSide.RIGHT -> screenWidth - params.width - dp(EDGE_MARGIN_DP)
         }
         if (attached) {
             try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}

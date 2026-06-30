@@ -48,34 +48,36 @@ class TimerRepositoryStateTest {
     }
 
     @Test
-    fun stop_fully_clears_state_no_preservation() {
-        // 1.0.3 起:stop 完全清空,不保留 durationMs。
-        // 「点了停止 = 我不干了」,滚轮/时长都该归 0,要求用户重新选时间。
+    fun stop_preserves_duration_status_becomes_Idle() {
+        // 1.0.4 起:stop 回到 Idle 但保留 durationMs,与 onAlarmFired 落地的 Finished 对齐——
+        // 用户点 stop 后,Start 按钮 enabled(durationMs>0),无需重新选时间。
         val repo = TimerRepository()
         repo.preview(10_000L)
         repo.start(10_000L)
         repo.stop()
         val s = repo.state.value
         assertEquals(TimerStatus.Idle, s.status)
-        assertEquals(0L, s.durationMs)  // 不再保留
-        assertEquals(0L, s.remainingMs) // 完全清空
+        assertEquals(10_000L, s.durationMs)  // 保留 preview 时设的时长
+        assertEquals(10_000L, s.remainingMs) // 同时 reset remainingMs 让 Start 后从 0 计数
     }
 
     @Test
-    fun stop_while_idle_still_resets_to_zero() {
-        // 用户在 Idle 状态点 stop(罕见路径,但要稳),不应该有副作用
+    fun stop_while_idle_preserves_previewed_duration() {
+        // 用户在 Idle 状态(preview 过后)点 stop(罕见路径,但要稳),durationMs 应该被保留
         val repo = TimerRepository()
         repo.preview(10_000L)
         repo.stop()
         val s = repo.state.value
         assertEquals(TimerStatus.Idle, s.status)
-        assertEquals(0L, s.durationMs)
-        assertEquals(0L, s.remainingMs)
+        assertEquals(10_000L, s.durationMs)
+        assertEquals(10_000L, s.remainingMs)
     }
 
     @Test
     fun bug_scenario_stop_then_preview_20s_then_start_works() {
-        // 重现用户报告的序列:10s → start → stop → preview 20s → start
+        // 历史背景:这是 fix-countdown-end-cleanup 之前用户报告的 bug 序列
+        // ——10s → start → stop → preview 20s → start。当时 stop 把 durationMs 清 0,
+        // 必须 preview 才能重新 start;该 case 名字保留为历史印记。
         val repo = TimerRepository()
 
         // Step 1: 设 10s
@@ -84,11 +86,11 @@ class TimerRepositoryStateTest {
         repo.start(10_000L)
         assertEquals(TimerStatus.Counting, repo.state.value.status)
 
-        // Step 3: 中途停止
+        // Step 3: 中途停止(1.0.4 起 stop 保留 durationMs,不再清 0)
         repo.stop()
         assertEquals(TimerStatus.Idle, repo.state.value.status)
-        assertEquals(0L, repo.state.value.durationMs)  // 1.0.3:stop 全清,不再保留
-        assertEquals(0L, repo.state.value.remainingMs)
+        assertEquals(10_000L, repo.state.value.durationMs) // 1.0.4:stop 保留
+        assertEquals(10_000L, repo.state.value.remainingMs)
 
         // Step 4: 改 20s
         repo.preview(20_000L)
