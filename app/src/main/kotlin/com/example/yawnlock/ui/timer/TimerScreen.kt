@@ -44,6 +44,16 @@ fun TimerScreen(
         }
     }
 
+    // 首次进入组合时(LaunchedEffect(Unit) 只触发一次),如果 state 还是空(刚打开 app
+    // 进程被重启 / TimerRepository 是新的),把 wheel 默认的 5 分钟推到 state。
+    // 否则用户看到的 wheel 显示 5 分钟,但 Start 按钮 enabled = !isActive && durationMs > 0
+    // 仍为 false——得手动动一下 chip / wheel 触发 preview 才能让 Start 变 enabled。
+    LaunchedEffect(Unit) {
+        if (state.durationMs <= 0L && !state.isActive) {
+            vm.setSeconds(seconds)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(
         Brush.verticalGradient(listOf(Color(0xFFFAFAFA), Color(0xFFF3EDFF)))
     )) {
