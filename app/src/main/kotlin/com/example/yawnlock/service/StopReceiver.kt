@@ -12,6 +12,7 @@ class StopReceiver : BroadcastReceiver() {
         if (intent.action == ACTION_STOP) {
             val app = context.applicationContext as YawnApplication
             app.timerRepository.stop()
+            app.bubbleController.hide()
             context.startService(
                 Intent(context, CountdownService::class.java).setAction(CountdownService.ACTION_STOP),
             )

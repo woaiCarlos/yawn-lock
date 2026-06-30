@@ -30,5 +30,9 @@ class LockReceiver : BroadcastReceiver() {
             context.startActivity(fallback)
         }
         app.timerRepository.onAlarmFired()
+        // 长时长(> 5 分钟)的锁屏触发路径走 AlarmManager → LockReceiver,与短时长的
+        // CountdownService.triggerLockNow 对称,这里必须也 hide 一次,否则浮窗会跨过锁屏界面
+        // 一直挂着,直到用户解锁回 app 才会被 ON_START 生命周期收尾。
+        app.bubbleController.hide()
     }
 }
