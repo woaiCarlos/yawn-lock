@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -19,18 +21,37 @@ import com.example.yawnlock.R
 import com.example.yawnlock.YawnApplication
 import com.example.yawnlock.domain.DurationFormatter
 import com.example.yawnlock.domain.TimerStatus
+import kotlin.math.abs
 
 class FloatingBubbleController(private val context: Context) {
     companion object {
         private const val TAG = "FloatingBubble"
-        private const val EXPANDED_WIDTH_DP = 200
+        // 视觉尺寸(dp)
+        private const val PINNED_WIDTH_DP = 6
+        private const val PINNED_HEIGHT_DP = 60
         private const val COLLAPSED_WIDTH_DP = 36
+        private const val EXPANDED_WIDTH_DP = 200
+        // EXPANDED bubble 的实际 wrap_content 高度(用作 maxY fallback,
+        // 真实高度要 bubbleView.height 取 — 它在 WM layout 后才有值)
+        private const val EXPANDED_FALLBACK_HEIGHT_DP = 140
+
+        // 边距与中心区域
         private const val EDGE_MARGIN_DP = 6
+        // 拖到屏幕两端各 30% 范围 = 贴边;中间 40% = 中心
+        private const val CENTER_FRACTION = 0.40f
+
+        // 自动收起:CIRCLE 状态静默 N 毫秒后回 LINE
+        private const val AUTO_COLLAPSE_DELAY_MS = 2_500L
     }
+
+    private enum class VisualState { LINE, CIRCLE, EXPANDED }
+
+    private enum class SnapSide { LEFT, RIGHT }
 
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val bubbleView: View =
         LayoutInflater.from(context).inflate(R.layout.floating_bubble, null)
+    private val pinnedView: View = bubbleView.findViewById(R.id.bubble_pinned)
     private val collapsedView: View = bubbleView.findViewById(R.id.bubble_collapsed)
     private val expandedView: View = bubbleView.findViewById(R.id.bubble_expanded)
     private val timeView: TextView = bubbleView.findViewById(R.id.bubble_time)
@@ -54,18 +75,25 @@ class FloatingBubbleController(private val context: Context) {
         y = dp(300)
     }
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val autoCollapseRunnable = Runnable {
+        Log.d(TAG, "auto-collapse timer fired, snap to LINE")
+        setVisualState(VisualState.LINE)
+    }
+    private var autoCollapseScheduled = false
+
     private var startX = 0f
     private var startY = 0f
     private var startParamsX = 0
     private var startParamsY = 0
     private var moved = false
-    private var collapsed = false
+    private var visualState: VisualState = VisualState.EXPANDED
+    private var lastSide: SnapSide = SnapSide.LEFT
     private var attached = false
 
     init {
-        // 默认展开
-        expandedView.visibility = View.VISIBLE
-        collapsedView.visibility = View.GONE
+        // 默认展开:与初始化 visualState = EXPANDED 一致
+        applyVisibilityForState()
         bubbleView.setOnTouchListener { _, ev -> handleTouch(ev) }
         pauseBtn.setOnClickListener { togglePause() }
         stopBtn.setOnClickListener { stopCountdown() }
@@ -76,27 +104,27 @@ class FloatingBubbleController(private val context: Context) {
             Log.d(TAG, "show: already attached, skip")
             return
         }
-        // 根据当前 collapsed 状态调整初始 width
-        params.width = if (collapsed) dp(COLLAPSED_WIDTH_DP) else dp(EXPANDED_WIDTH_DP)
+        // 根据当前 visualState 调整初始 width,确保 hide/show 切换不破坏视觉态
+        params.width = widthForState(visualState)
         try {
             wm.addView(bubbleView, params)
         } catch (e: Exception) {
             Log.e(TAG, "addView failed; bubble will not show", e)
             return
         }
-        // addView 成功才标记 attached
         attached = true
         val s = (context.applicationContext as YawnApplication).timerRepository.state.value
         timeView.text = DurationFormatter.toMmSs(s.remainingMs)
         updateStatus(s.status is TimerStatus.Paused)
+        // 防止 hide/show 边界上挂着 stale timer 在下一拍秒收
+        refreshAutoCollapseSchedule()
     }
 
     fun hide() {
         if (!attached) return
         // 关键:无论 wm.removeView 抛不抛,attached 必须无条件重置。
         // 否则一旦 removeView 失败(overlay 权限抖动 / 视图已 detach),
-        // 后续 show() 全部 if (attached) return,气泡永远不再出现——
-        // 这就是「设 10s → 中途停止 → 重进 app → 设 20s → 开始,不计时」bug 的根因。
+        // 后续 show() 全部 if (attached) return,气泡永远不再出现。
         try {
             wm.removeView(bubbleView)
         } catch (e: Exception) {
@@ -104,6 +132,8 @@ class FloatingBubbleController(private val context: Context) {
         } finally {
             attached = false
         }
+        // 隐藏期间挂着 auto-collapse timer 没意义,清掉
+        cancelAutoCollapse()
     }
 
     fun updateTime(ms: Long) {
@@ -119,8 +149,6 @@ class FloatingBubbleController(private val context: Context) {
         val repo = (context.applicationContext as YawnApplication).timerRepository
         if (repo.state.value.status is TimerStatus.Paused) {
             repo.resume()
-            // 自己立即更新 UI:不等 service(否则 service 看到 state 已是 Counting 还会跑 idempotent cleanup,
-            // 但 in-app 路径在 service 那更新 UI 会变成双重来源不一致)
             updateStatus(isPaused = false)
             context.startService(
                 Intent(context, CountdownService::class.java).setAction(CountdownService.ACTION_RESUME)
@@ -146,78 +174,149 @@ class FloatingBubbleController(private val context: Context) {
 
     private fun handleTouch(ev: MotionEvent): Boolean {
         val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+        val displayMetrics = context.resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+        // 拖动期间 params.width 不会变(params.x / y 才是被改的),所以这里取 params.width
+        // 比读 bubbleView.width 更准(bubbleView.width 在状态切换后会有 1 frame 的 WM layout 延迟)。
+        val currentWidth = params.width
+        // bubbleView.height 是 wrap_content 实际渲染高度(EXPANDED ~140dp, CIRCLE 36dp, LINE 60dp)
+        // bubbleView.height 在 WM layout 完成后才被赋值,首次 ACTION_DOWN 取不到,
+        // 用 dp(EXPANDED_FALLBACK_HEIGHT_DP) 作为默认上限以避免首帧 maxY 爆掉。
+        val currentHeight = bubbleView.height.takeIf { it > 0 } ?: when (visualState) {
+            VisualState.LINE -> dp(PINNED_HEIGHT_DP)
+            VisualState.CIRCLE -> dp(COLLAPSED_WIDTH_DP)
+            VisualState.EXPANDED -> dp(EXPANDED_FALLBACK_HEIGHT_DP)
+        }
+
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
                 startX = ev.rawX; startY = ev.rawY
                 startParamsX = params.x; startParamsY = params.y
                 moved = false
+                // 任何开始触摸:取消已挂的 auto-collapse,避免「刚点就被收」
+                cancelAutoCollapse()
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - startX
                 val dy = ev.rawY - startY
-                if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > slop) moved = true
-                val displayMetrics = context.resources.displayMetrics
-                val maxX = displayMetrics.widthPixels - bubbleView.width
-                val maxY = displayMetrics.heightPixels - bubbleView.height
+                if (abs(dx) + abs(dy) > slop) moved = true
+                val maxX = (screenWidth - currentWidth).coerceAtLeast(0)
+                val maxY = (screenHeight - currentHeight).coerceAtLeast(0)
                 params.x = (startParamsX + dx.toInt()).coerceIn(0, maxX)
                 params.y = (startParamsY + dy.toInt()).coerceIn(0, maxY)
                 try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
             }
             MotionEvent.ACTION_UP -> {
                 if (moved) {
-                    // 拖动后:气泡边缘只要顶到屏幕边缘(<= 0 或 >= screenWidth)就折叠
-                    val displayMetrics = context.resources.displayMetrics
-                    val screenWidth = displayMetrics.widthPixels
+                    // 拖动后:按屏幕分三段判定
                     val bubbleLeft = params.x
-                    val bubbleRight = params.x + bubbleView.width
-                    if (bubbleLeft <= 0) {
-                        // 气泡左边缘顶到/超出屏幕左边缘 → 折叠到左
-                        collapseToLeft()
-                    } else if (bubbleRight >= screenWidth) {
-                        // 气泡右边缘顶到/超出屏幕右边缘 → 折叠到右
-                        collapseToRight()
+                    val bubbleRight = params.x + currentWidth
+                    val bubbleCenter = params.x + currentWidth / 2f
+                    val centerLow = screenWidth * ((1f - CENTER_FRACTION) / 2f)
+                    val centerHigh = screenWidth - centerLow
+                    when {
+                        bubbleLeft <= 0 -> {
+                            lastSide = SnapSide.LEFT
+                            setVisualState(VisualState.CIRCLE)
+                        }
+                        bubbleRight >= screenWidth -> {
+                            lastSide = SnapSide.RIGHT
+                            setVisualState(VisualState.CIRCLE)
+                        }
+                        bubbleCenter in centerLow..centerHigh ->
+                            setVisualState(VisualState.EXPANDED)
+                        else -> {
+                            // 不左不右不中 = 屏幕两侧 30% 但贴近中央方向,按贴边处理
+                            lastSide = if (bubbleCenter < screenWidth / 2f) SnapSide.LEFT else SnapSide.RIGHT
+                            setVisualState(VisualState.CIRCLE)
+                        }
                     }
-                    // 否则:停在拖到的位置,保持展开
-                } else if (collapsed) {
-                    // 没移动 + 当前是折叠态 → 展开
-                    expand()
+                } else {
+                    // 没移动:按当前状态 tap → 下一态
+                    when (visualState) {
+                        VisualState.LINE -> setVisualState(VisualState.CIRCLE)
+                        VisualState.CIRCLE -> setVisualState(VisualState.EXPANDED)
+                        VisualState.EXPANDED -> setVisualState(VisualState.CIRCLE)
+                    }
                 }
-                // 没移动 + 展开态:什么都不做(避免误触收起)
             }
         }
         return true
     }
 
-    private fun collapseToLeft() {
-        collapsed = true
-        expandedView.visibility = View.GONE
-        collapsedView.visibility = View.VISIBLE
-        params.width = dp(COLLAPSED_WIDTH_DP)
-        params.x = dp(EDGE_MARGIN_DP)
-        try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
+    // ---- 状态机核心:setVisualState 是唯一原子切换入口 ----
+
+    private fun setVisualState(next: VisualState) {
+        if (visualState != next) {
+            Log.d(TAG, "state: $visualState → $next")
+            visualState = next
+        }
+        applyVisibilityForState()
+        params.width = widthForState(next)
+        if (next == VisualState.LINE || next == VisualState.CIRCLE) {
+            // 贴边 x 按 lastSide 设
+            val displayMetrics = context.resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            params.x = when (lastSide) {
+                SnapSide.LEFT -> dp(EDGE_MARGIN_DP)
+                SnapSide.RIGHT -> screenWidth - params.width - dp(EDGE_MARGIN_DP)
+            }
+        }
+        if (attached) {
+            try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
+        }
+        refreshAutoCollapseSchedule()
     }
 
-    private fun collapseToRight() {
-        collapsed = true
-        expandedView.visibility = View.GONE
-        collapsedView.visibility = View.VISIBLE
-        val displayMetrics = context.resources.displayMetrics
-        params.width = dp(COLLAPSED_WIDTH_DP)
-        // 右侧贴边:右边距 EDGE_MARGIN_DP
-        params.x = displayMetrics.widthPixels - dp(COLLAPSED_WIDTH_DP) - dp(EDGE_MARGIN_DP)
-        try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
+    private fun applyVisibilityForState() {
+        when (visualState) {
+            VisualState.LINE -> {
+                pinnedView.visibility = View.VISIBLE
+                collapsedView.visibility = View.GONE
+                expandedView.visibility = View.GONE
+            }
+            VisualState.CIRCLE -> {
+                pinnedView.visibility = View.GONE
+                collapsedView.visibility = View.VISIBLE
+                expandedView.visibility = View.GONE
+            }
+            VisualState.EXPANDED -> {
+                pinnedView.visibility = View.GONE
+                collapsedView.visibility = View.GONE
+                expandedView.visibility = View.VISIBLE
+            }
+        }
     }
 
-    private fun expand() {
-        collapsed = false
-        expandedView.visibility = View.VISIBLE
-        collapsedView.visibility = View.GONE
-        val displayMetrics = context.resources.displayMetrics
-        params.width = dp(EXPANDED_WIDTH_DP)
-        // 展开默认位置:左侧 40dp,但不能超出屏幕
-        val maxX = (displayMetrics.widthPixels - dp(EXPANDED_WIDTH_DP)).coerceAtLeast(0)
-        params.x = dp(40).coerceAtMost(maxX)
-        try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
+    private fun widthForState(state: VisualState): Int = when (state) {
+        VisualState.LINE -> dp(PINNED_WIDTH_DP)
+        VisualState.CIRCLE -> dp(COLLAPSED_WIDTH_DP)
+        VisualState.EXPANDED -> dp(EXPANDED_WIDTH_DP)
+    }
+
+    // ---- 自动收起定时器 ----
+
+    private fun scheduleAutoCollapse() {
+        handler.removeCallbacks(autoCollapseRunnable)
+        handler.postDelayed(autoCollapseRunnable, AUTO_COLLAPSE_DELAY_MS)
+        autoCollapseScheduled = true
+        Log.d(TAG, "auto-collapse scheduled in ${AUTO_COLLAPSE_DELAY_MS}ms")
+    }
+
+    private fun cancelAutoCollapse() {
+        if (autoCollapseScheduled) {
+            handler.removeCallbacks(autoCollapseRunnable)
+            autoCollapseScheduled = false
+            Log.d(TAG, "auto-collapse cancelled")
+        }
+    }
+
+    private fun refreshAutoCollapseSchedule() {
+        cancelAutoCollapse()
+        if (visualState == VisualState.CIRCLE) {
+            scheduleAutoCollapse()
+        }
     }
 
     private fun dp(value: Int): Int =

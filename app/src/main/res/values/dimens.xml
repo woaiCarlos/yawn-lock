@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bubble edge-line (LINE state): 6dp wide × 60dp tall handle on screen edge -->
+    <dimen name="bubble_pinned_width">6dp</dimen>
+    <dimen name="bubble_pinned_height">60dp</dimen>
+
+    <!-- Bubble circle (CIRCLE state): 36dp × 36dp pill -->
+    <dimen name="bubble_collapsed_width">36dp</dimen>
+    <dimen name="bubble_collapsed_height">36dp</dimen>
+
+    <!-- Bubble full (EXPANDED state): 200dp wide -->
+    <dimen name="bubble_expanded_width">200dp</dimen>
+
+    <!-- Edge margin when snapping to screen edge -->
+    <dimen name="bubble_edge_margin">6dp</dimen>
+</resources>

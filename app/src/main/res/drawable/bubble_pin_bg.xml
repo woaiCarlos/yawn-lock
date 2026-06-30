@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  bubble_pin_bg
+  =========
+  Line-state 背景:贴在屏幕左缘的「拉手」。
+  - 整体用紫色渐变与 bubble_bg 一致(品牌色继承)
+  - 左侧大半径,右侧小半径,贴合屏幕形成「把手」视觉
+  - 右侧贴边意味着用户可以把它往右拉出
+  - size 由 outer View 的 width/height 控制;这里只负责 shape + colors
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="#3D2E80"
+        android:endColor="#6750A4" />
+    <corners
+        android:topLeftRadius="12dp"
+        android:bottomLeftRadius="12dp"
+        android:topRightRadius="2dp"
+        android:bottomRightRadius="2dp" />
+</shape>
