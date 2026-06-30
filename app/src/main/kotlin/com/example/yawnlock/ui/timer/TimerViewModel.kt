@@ -25,7 +25,10 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun start() {
         val s = state.value
-        if (s.status !is com.example.yawnlock.domain.TimerStatus.Idle) return
+        // 允许 Idle 和 Finished:倒计时自然结束时状态停在 Finished(durationMs 保留),
+        // 用户切回 app 看到 wheel 仍显示原时长 + Start 按钮 enabled,点一下就应该能重启动。
+        // isActive (Counting/Paused) 仍被排除——正在计时不应被 start 重置。
+        if (s.isActive) return
         if (s.durationMs <= 0L) return
         repo.start(s.durationMs)
     }
