@@ -4,6 +4,14 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
+    <!-- LINE 态:贴边的 6dp × 60dp 竖条 → 在屏幕最边缘时最小化视觉占用 -->
+    <View
+        android:id="@+id/bubble_pinned"
+        android:layout_width="@dimen/bubble_pinned_width"
+        android:layout_height="@dimen/bubble_pinned_height"
+        android:background="@drawable/bubble_pin_bg"
+        android:visibility="gone" />
+
     <!-- 折叠态:36dp 圆形小药丸 -->
     <LinearLayout
         android:id="@+id/bubble_collapsed"
