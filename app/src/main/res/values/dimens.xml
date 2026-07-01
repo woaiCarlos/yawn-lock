@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Bubble edge-line (LINE state): 6dp wide × 60dp tall handle on screen edge -->
-    <dimen name="bubble_pinned_width">6dp</dimen>
+    <!-- Bubble edge-line (LINE state): 3dp wide × 60dp tall handle on screen edge -->
+    <dimen name="bubble_pinned_width">3dp</dimen>
     <dimen name="bubble_pinned_height">60dp</dimen>
 
     <!-- Bubble circle (CIRCLE state): 36dp × 36dp pill -->

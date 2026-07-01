@@ -27,7 +27,7 @@ class FloatingBubbleController(private val context: Context) {
     companion object {
         private const val TAG = "FloatingBubble"
         // 视觉尺寸(dp)
-        private const val PINNED_WIDTH_DP = 6
+        private const val PINNED_WIDTH_DP = 3
         private const val PINNED_HEIGHT_DP = 60
         private const val COLLAPSED_WIDTH_DP = 36
         private const val EXPANDED_WIDTH_DP = 200
@@ -35,10 +35,8 @@ class FloatingBubbleController(private val context: Context) {
         // 真实高度要 bubbleView.height 取 — 它在 WM layout 后才有值)
         private const val EXPANDED_FALLBACK_HEIGHT_DP = 140
 
-        // 边距与中心区域
+        // 边距
         private const val EDGE_MARGIN_DP = 6
-        // 拖到屏幕两端各 30% 范围 = 贴边;中间 40% = 中心
-        private const val CENTER_FRACTION = 0.40f
 
         // 自动收起:CIRCLE 状态静默 N 毫秒后回 LINE
         private const val AUTO_COLLAPSE_DELAY_MS = 2_500L
@@ -209,12 +207,11 @@ class FloatingBubbleController(private val context: Context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (moved) {
-                    // 拖动后:按屏幕分三段判定
+                    // 拖动后:只在「实际贴边」才吸到 CIRCLE,其他任何位置都落 EXPANDED。
+                    // 之前有「屏幕 30% 区域就吸边」的兜底分支,实测 30% 在 1080dp 屏 = 324dp
+                    // 太宽,用户「稍微动一下就被吸过去」。新规则严格按 0dp 边距触发吸附。
                     val bubbleLeft = params.x
                     val bubbleRight = params.x + currentWidth
-                    val bubbleCenter = params.x + currentWidth / 2f
-                    val centerLow = screenWidth * ((1f - CENTER_FRACTION) / 2f)
-                    val centerHigh = screenWidth - centerLow
                     when {
                         bubbleLeft <= 0 -> {
                             lastSide = SnapSide.LEFT
@@ -224,13 +221,7 @@ class FloatingBubbleController(private val context: Context) {
                             lastSide = SnapSide.RIGHT
                             setVisualState(VisualState.CIRCLE)
                         }
-                        bubbleCenter in centerLow..centerHigh ->
-                            setVisualState(VisualState.EXPANDED)
-                        else -> {
-                            // 不左不右不中 = 屏幕两侧 30% 但贴近中央方向,按贴边处理
-                            lastSide = if (bubbleCenter < screenWidth / 2f) SnapSide.LEFT else SnapSide.RIGHT
-                            setVisualState(VisualState.CIRCLE)
-                        }
+                        else -> setVisualState(VisualState.EXPANDED)
                     }
                 } else {
                     // 没移动:按当前状态 tap → 下一态
