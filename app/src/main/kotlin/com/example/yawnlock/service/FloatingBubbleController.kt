@@ -27,7 +27,8 @@ class FloatingBubbleController(private val context: Context) {
     companion object {
         private const val TAG = "FloatingBubble"
         // 视觉尺寸(dp)
-        private const val PINNED_WIDTH_DP = 4
+        private const val PINNED_WIDTH_DP = 4          // LINE 状态下可视圆柱体的宽度
+        private const val PINNED_TOUCH_WIDTH_DP = 30   // LINE 状态下 FrameLayout 整体宽度(=触摸区)
         private const val PINNED_HEIGHT_DP = 50
         private const val COLLAPSED_WIDTH_DP = 36
         private const val EXPANDED_WIDTH_DP = 200
@@ -207,23 +208,19 @@ class FloatingBubbleController(private val context: Context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (moved) {
-                    // 拖动后:完全自由,无任何「吸边 / 重置位置 / 截屏比例」逻辑。
-                    // 唯一自动行为:拖到屏幕边界时直接落 LINE 状态(而非 CIRCLE),
-                    // 跳过中间过渡,让用户从「拖动→释放」到「看到 LINE」一气呵成。
-                    // 落在屏幕内的任何位置都保持 EXPANDED,用户可以自由定位。
+                    // 拖动后:完全 free,无任何自动「重置位置 / 状态切换」。
+                    // 唯一自动行为:拖到屏幕边界(0dp 边距)时落 LINE,跳过 CIRCLE 中间态。
+                    // 在屏幕内任何位置释放,状态不变,params.x 也不动 —— 用户拖到哪就停到哪。
                     val bubbleLeft = params.x
                     val bubbleRight = params.x + currentWidth
-                    when {
-                        bubbleLeft <= 0 -> {
-                            lastSide = SnapSide.LEFT
-                            setVisualState(VisualState.LINE)
-                        }
-                        bubbleRight >= screenWidth -> {
-                            lastSide = SnapSide.RIGHT
-                            setVisualState(VisualState.LINE)
-                        }
-                        else -> setVisualState(VisualState.EXPANDED)
+                    if (bubbleLeft <= 0) {
+                        lastSide = SnapSide.LEFT
+                        setVisualState(VisualState.LINE)
+                    } else if (bubbleRight >= screenWidth) {
+                        lastSide = SnapSide.RIGHT
+                        setVisualState(VisualState.LINE)
                     }
+                    // else: 屏幕内任何位置都保持当前 visualState,不动 params.x
                 } else {
                     // 没移动:按当前状态 tap → 下一态
                     when (visualState) {
@@ -246,14 +243,26 @@ class FloatingBubbleController(private val context: Context) {
         }
         applyVisibilityForState()
         params.width = widthForState(next)
-        // 三态统一按 lastSide 重算 params.x:切到 EXPANDED 时 width 从 36 变 200,
-        // 不重算会让贴右屏的圆展开后半截被屏幕裁掉。这里无条件重算保证全宽可见。
-        val displayMetrics = context.resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-        params.x = when (lastSide) {
-            SnapSide.LEFT -> dp(EDGE_MARGIN_DP)
-            SnapSide.RIGHT -> screenWidth - params.width - dp(EDGE_MARGIN_DP)
+        if (next == VisualState.LINE) {
+            // LINE 状态:params.x 按 lastSide 算,贴左/右屏;同时把可见 bubble_pinned
+            // 推到 FrameLayout 的 lastSide 端(gravity),让 4dp 宽的可见圆柱体视觉上贴边,
+            // 26dp 透明区域作为触摸垫
+            val displayMetrics = context.resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            params.x = when (lastSide) {
+                SnapSide.LEFT -> dp(EDGE_MARGIN_DP)
+                SnapSide.RIGHT -> screenWidth - params.width - dp(EDGE_MARGIN_DP)
+            }
+            val lp = pinnedView.layoutParams as FrameLayout.LayoutParams
+            lp.gravity = when (lastSide) {
+                SnapSide.LEFT -> Gravity.TOP or Gravity.START
+                SnapSide.RIGHT -> Gravity.TOP or Gravity.END
+            }
+            pinnedView.layoutParams = lp
         }
+        // CIRCLE/EXPANDED 状态:不动 params.x —— 用户拖到哪就停到哪,完全不重置位置。
+        // 上一版用「无条件按 lastSide 重算 params.x」是 bug:拖到屏幕中间释放时
+        // 还会被吸到 lastSide 边,违反「自由拖动」的需求。
         if (attached) {
             try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
         }
@@ -281,7 +290,10 @@ class FloatingBubbleController(private val context: Context) {
     }
 
     private fun widthForState(state: VisualState): Int = when (state) {
-        VisualState.LINE -> dp(PINNED_WIDTH_DP)
+        // LINE 状态的 params.width = 30dp 而不是 4dp:让 WindowManager 把 FrameLayout 撑成
+        // 30dp 宽,触摸区就有 30dp(可见圆柱体只占 4dp,剩下 26dp 是透明触摸垫)。
+        // 气泡本体仍由 layout_gravity 推到 lastSide 端,视觉上跟以前一样贴边。
+        VisualState.LINE -> dp(PINNED_TOUCH_WIDTH_DP)
         VisualState.CIRCLE -> dp(COLLAPSED_WIDTH_DP)
         VisualState.EXPANDED -> dp(EXPANDED_WIDTH_DP)
     }
