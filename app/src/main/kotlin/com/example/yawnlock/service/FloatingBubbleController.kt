@@ -242,6 +242,8 @@ class FloatingBubbleController(private val context: Context) {
             visualState = next
         }
         applyVisibilityForState()
+        val oldX = params.x
+        val oldWidth = params.width
         params.width = widthForState(next)
         if (next == VisualState.LINE) {
             // LINE 状态:params.x 按 lastSide 算,贴左/右屏;同时把可见 bubble_pinned
@@ -259,10 +261,22 @@ class FloatingBubbleController(private val context: Context) {
                 SnapSide.RIGHT -> Gravity.TOP or Gravity.END
             }
             pinnedView.layoutParams = lp
+        } else if (next == VisualState.EXPANDED) {
+            // EXPANDED 状态:
+            //   - 若原状态(CIRCLE)位于屏边,把 params.x 居中,避免 200dp 宽气泡一半出框
+            //     (用户反馈:tap CIRCLE 展开后,200dp 宽在右屏 1080dp 屏只露 42dp ≈ 20%)
+            //   - 若原状态在屏幕内,保持 params.x 不动,尊重用户拖到哪就停哪的预期
+            val displayMetrics = context.resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            val oldLeft = oldX
+            val oldRight = oldX + oldWidth  // CIRCLE width = 36dp
+            if (oldLeft <= 0 || oldRight >= screenWidth) {
+                // 之前在屏边,展开成 200dp 会出框 → 居中显示
+                params.x = (screenWidth - params.width) / 2
+            }
+            // else: 用户主动把 CIRCLE 拖到屏中,EXPANDED 继承该位置
         }
-        // CIRCLE/EXPANDED 状态:不动 params.x —— 用户拖到哪就停到哪,完全不重置位置。
-        // 上一版用「无条件按 lastSide 重算 params.x」是 bug:拖到屏幕中间释放时
-        // 还会被吸到 lastSide 边,违反「自由拖动」的需求。
+        // CIRCLE 状态:不动 params.x —— 用户拖到哪就停到哪
         if (attached) {
             try { wm.updateViewLayout(bubbleView, params) } catch (_: Exception) {}
         }
