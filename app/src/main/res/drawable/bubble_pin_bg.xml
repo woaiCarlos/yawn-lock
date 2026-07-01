@@ -2,23 +2,17 @@
 <!--
   bubble_pin_bg
   =========
-  Line-state 背景:贴在屏幕边缘的「紫色圆柱体」。
+  Line-state 背景:贴在屏幕边缘的「纯紫色圆柱体」。
 
-  关键设计:横向 3-stop 渐变(left 深紫 → center 亮紫 → right 深紫)模拟圆柱表面
-  的高光,让 4dp × 50dp 的窄条在视觉上能看出「圆形截面」而不是「方形边框」。
-
-  - 颜色对比必须够强(深紫 #1A1240 vs 亮紫 #C9B6E6),否则小尺寸下渐变看不出来
-  - corner 8dp 在 4dp 宽元素上自动被 cap 到 2dp,形成 2dp 圆角矩形,
-    看起来像「拉长的胶囊」而非「瘦长方形」
-  - 4dp 宽 + 50dp 高 = 1:12.5 长宽比,在 60-100dp 高度下不会被认成"线"
+  - 4dp 宽 × 50dp 高 + 8dp 圆角(4dp 宽上 cap 到 2dp 实际圆角),
+    视觉上是一根拉长胶囊,代表圆柱体
+  - 纯色 #4A3580(品牌紫 #2D2466 / #6750A4 的中段)清晰可辨,
+    不再使用 3-stop 渐变 —— 实测 4dp 宽元素下,渐变的 3 个色带会
+    看起来像「条形码 / 分段」,反而失去圆柱体观感
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient
-        android:angle="0"
-        android:startColor="#1A1240"
-        android:centerColor="#C9B6E6"
-        android:endColor="#1A1240" />
+    <solid android:color="#4A3580" />
     <corners
         android:topLeftRadius="8dp"
         android:bottomLeftRadius="8dp"
