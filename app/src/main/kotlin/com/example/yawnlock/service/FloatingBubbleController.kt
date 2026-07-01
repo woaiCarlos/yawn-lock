@@ -27,8 +27,8 @@ class FloatingBubbleController(private val context: Context) {
     companion object {
         private const val TAG = "FloatingBubble"
         // 视觉尺寸(dp)
-        private const val PINNED_WIDTH_DP = 3
-        private const val PINNED_HEIGHT_DP = 60
+        private const val PINNED_WIDTH_DP = 4
+        private const val PINNED_HEIGHT_DP = 50
         private const val COLLAPSED_WIDTH_DP = 36
         private const val EXPANDED_WIDTH_DP = 200
         // EXPANDED bubble 的实际 wrap_content 高度(用作 maxY fallback,
@@ -207,19 +207,20 @@ class FloatingBubbleController(private val context: Context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (moved) {
-                    // 拖动后:只在「实际贴边」才吸到 CIRCLE,其他任何位置都落 EXPANDED。
-                    // 之前有「屏幕 30% 区域就吸边」的兜底分支,实测 30% 在 1080dp 屏 = 324dp
-                    // 太宽,用户「稍微动一下就被吸过去」。新规则严格按 0dp 边距触发吸附。
+                    // 拖动后:完全自由,无任何「吸边 / 重置位置 / 截屏比例」逻辑。
+                    // 唯一自动行为:拖到屏幕边界时直接落 LINE 状态(而非 CIRCLE),
+                    // 跳过中间过渡,让用户从「拖动→释放」到「看到 LINE」一气呵成。
+                    // 落在屏幕内的任何位置都保持 EXPANDED,用户可以自由定位。
                     val bubbleLeft = params.x
                     val bubbleRight = params.x + currentWidth
                     when {
                         bubbleLeft <= 0 -> {
                             lastSide = SnapSide.LEFT
-                            setVisualState(VisualState.CIRCLE)
+                            setVisualState(VisualState.LINE)
                         }
                         bubbleRight >= screenWidth -> {
                             lastSide = SnapSide.RIGHT
-                            setVisualState(VisualState.CIRCLE)
+                            setVisualState(VisualState.LINE)
                         }
                         else -> setVisualState(VisualState.EXPANDED)
                     }
