@@ -3,18 +3,22 @@
   bubble_pin_bg
   =========
   Line-state 背景:贴在屏幕边缘的「紫色圆柱体」。
-  - 横向渐变(left 暗 → center 亮 → right 暗)模拟圆柱体表面的高光,3D 感更强
-  - 4dp 宽 + 50dp 高(配合 OuterLayout LinearLayout),小尺寸下不会被认成"方形边框"
-  - 上下 8dp 圆角、左右 2dp 圆角,让 4dp × 50dp 的形状视觉上像「拉长的胶囊」而非「瘦长方形」
-  - 颜色继承 brand purple;start/end 用 #2D2466(更深的紫)做圆柱两侧阴影,center #9F87D4 做受光面
+
+  关键设计:横向 3-stop 渐变(left 深紫 → center 亮紫 → right 深紫)模拟圆柱表面
+  的高光,让 4dp × 50dp 的窄条在视觉上能看出「圆形截面」而不是「方形边框」。
+
+  - 颜色对比必须够强(深紫 #1A1240 vs 亮紫 #C9B6E6),否则小尺寸下渐变看不出来
+  - corner 8dp 在 4dp 宽元素上自动被 cap 到 2dp,形成 2dp 圆角矩形,
+    看起来像「拉长的胶囊」而非「瘦长方形」
+  - 4dp 宽 + 50dp 高 = 1:12.5 长宽比,在 60-100dp 高度下不会被认成"线"
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
         android:angle="0"
-        android:startColor="#2D2466"
-        android:centerColor="#9F87D4"
-        android:endColor="#2D2466" />
+        android:startColor="#1A1240"
+        android:centerColor="#C9B6E6"
+        android:endColor="#1A1240" />
     <corners
         android:topLeftRadius="8dp"
         android:bottomLeftRadius="8dp"
